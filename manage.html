@@ -323,10 +323,7 @@
   </div>
 
   <div class="stats-banner">
-    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-      <span id="stats-count">Loading reels...</span>
-      <span id="stats-size-pill" style="display: none; background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 3px 10px; border-radius: 12px; font-weight: 600; font-size: 12px;"></span>
-    </div>
+    <span id="stats-count">Loading reels...</span>
     <span style="color: var(--primary); display: flex; align-items: center; gap: 6px;">
       <span style="width: 7px; height: 7px; background: #10b981; border-radius: 50%; display: inline-block;"></span>
       Cloudflare R2 Synced
@@ -441,24 +438,15 @@
   function renderTable(reels) {
     const container = document.getElementById('reels-container');
     const statsEl = document.getElementById('stats-count');
-    const sizePill = document.getElementById('stats-size-pill');
     container.innerHTML = '';
 
     const totalMb = reels.reduce((acc, r) => acc + (parseFloat(r.size_mb) || 0), 0);
-    if (sizePill) {
-      if (totalMb > 0) {
-        sizePill.textContent = `📦 ${formatSize(totalMb)} Storage Used`;
-        sizePill.style.display = 'inline-block';
-      } else {
-        sizePill.style.display = 'none';
-      }
-    }
+    const countText = reels.length === masterCatalog.length 
+      ? `Total: ${reels.length} Reel${reels.length === 1 ? '' : 's'} registered`
+      : `Showing ${reels.length} of ${masterCatalog.length} Reels`;
 
-    if (reels.length === masterCatalog.length) {
-      statsEl.textContent = `Total: ${reels.length} Reel${reels.length === 1 ? '' : 's'} registered`;
-    } else {
-      statsEl.textContent = `Showing ${reels.length} of ${masterCatalog.length} Reels`;
-    }
+    const sizeText = totalMb > 0 ? ` | ⚡️ ${formatSize(totalMb)} Storage Used` : '';
+    statsEl.textContent = `${countText}${sizeText}`;
 
     if (reels.length === 0) {
       container.innerHTML = `
