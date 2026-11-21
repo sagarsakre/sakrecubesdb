@@ -1589,6 +1589,15 @@
     }
 
     loadMasterCatalog();
+
+    // Register Service Worker for offline PWA shell caching (HTTPS / GitHub Pages)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+          console.warn('SW registration skipped:', err);
+        });
+      });
+    }
   </script>
 </body>
 </html>
