@@ -38,6 +38,26 @@ R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
 R2_BUCKET = os.getenv("R2_BUCKET", "sakrecubesdb-assets")
 CDN_PUBLIC_URL = os.getenv("CDN_PUBLIC_URL", "https://pub-fd6036bfc4d84b359e94558bed250b7c.r2.dev")
 
+# Dual Logger: Mirrors all print output to both terminal (n8n) and logs/ingest.log
+class DualLogger:
+    def __init__(self, log_file_path: Path):
+        self.terminal = sys.stdout
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        self.log_file = open(log_file_path, "a", buffering=1, encoding="utf-8")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.terminal.flush()
+        self.log_file.write(message)
+        self.log_file.flush()
+
+    def flush(self):
+        self.terminal.flush()
+        self.log_file.flush()
+
+LOG_FILE = APP_DIR / "logs" / "ingest.log"
+sys.stdout = DualLogger(LOG_FILE)
+
 def get_s3_client():
     if not (R2_ENDPOINT and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY):
         return None
