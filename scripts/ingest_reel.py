@@ -58,6 +58,10 @@ class DualLogger:
 LOG_FILE = APP_DIR / "logs" / "ingest.log"
 sys.stdout = DualLogger(LOG_FILE)
 
+def extract_reel_shortcode(url: str) -> str:
+    m = re.search(r"/(?:reel|reels|p)/([a-zA-Z0-9_-]+)", url)
+    return m.group(1) if m else ""
+
 def get_s3_client():
     if not (R2_ENDPOINT and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY):
         return None
@@ -151,10 +155,43 @@ def main():
             sys.exit(1)
 
         downloaded_temp_video = True
-        auto_title = info.get("title") or info.get("description", "").split("\n")[0][:45] or "Instagram Reel"
-        title = args.title or auto_title.strip()
+        unique_id = info.get("id") or extract_reel_shortcode(input_target)
+        uploader = info.get("uploader") or info.get("channel") or info.get("uploader_id") or ""
+        desc = info.get("description") or ""
+
+        caption_lines = [l.strip() for l in desc.splitlines() if l.strip() and not l.strip().startswith("#")]
+        first_caption = caption_lines[0] if caption_lines else ""
+        if first_caption:
+            first_caption = re.sub(r'#\w+', '', first_caption).strip()
+
+        if args.title:
+            title = args.title.strip()
+        elif first_caption and len(first_caption) >= 4:
+            title = first_caption[:50].strip()
+        elif info.get("title") and not info.get("title").lower().startswith("video by"):
+            title = info.get("title").strip()
+        elif uploader:
+            title = f"Reel by @{uploader}"
+        else:
+            title = "Instagram Reel"
+
+        subtitle = args.subtitle
+        if not subtitle and uploader:
+            subtitle = f"@{uploader}"
+
         base_name = re.sub(r'[^a-zA-Z0-9_\-]+', '-', title).strip('-').lower()
-        reel_id = args.id or base_name[:35]
+        if args.id:
+            reel_id = args.id.strip().lower()
+        elif unique_id:
+            # Include unique Instagram ID / shortcode so multiple reels from the same creator never collide
+            short_unique = unique_id.lower()
+            if short_unique in base_name:
+                reel_id = base_name[:40]
+            else:
+                reel_id = f"{base_name[:24]}-{short_unique}".strip('-')
+        else:
+            reel_id = base_name[:35]
+
         print(f"   ✅ Downloaded: {video_path} ({os.path.getsize(video_path) / (1024*1024):.2f} MB)")
     else:
         video_path = os.path.abspath(input_target)
@@ -163,9 +200,9 @@ def main():
             sys.exit(1)
 
         base_name = os.path.splitext(os.path.basename(video_path))[0]
-        reel_id = args.id or re.sub(r'[^a-zA-Z0-9_\-]+', '-', base_name).strip('-').lower()
         title = args.title or base_name
-    subtitle = args.subtitle
+        subtitle = args.subtitle
+        reel_id = args.id or re.sub(r'[^a-zA-Z0-9_\-]+', '-', base_name).strip('-').lower()
 
     output_dir = APP_DIR / "data" / "reels" / reel_id
     output_dir.mkdir(parents=True, exist_ok=True)
