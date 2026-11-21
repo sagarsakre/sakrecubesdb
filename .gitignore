@@ -21,6 +21,7 @@ venv/
 
 # Heavy Media & Assets (Served via Cloud CDN / Cloudflare R2)
 data/reels/
+data/queue.db*
 *.gif
 *.mp4
 *.mov
