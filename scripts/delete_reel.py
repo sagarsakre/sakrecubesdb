@@ -103,7 +103,8 @@ def main():
     if args.list:
         print(f"📚 Master Catalog ({len(catalog)} reels):")
         for idx, r in enumerate(catalog, 1):
-            print(f"  {idx:02d}. [{r.get('id')}] {r.get('title')} ({r.get('total_shots', 0)} shots)")
+            size_str = f" • {r.get('size_mb')} MB" if r.get('size_mb') else ""
+            print(f"  {idx:02d}. [{r.get('id')}] {r.get('title')} ({r.get('total_shots', 0)} shots{size_str})")
         return
 
     if args.all:
