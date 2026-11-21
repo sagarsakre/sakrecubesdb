@@ -376,6 +376,8 @@
 </div>
 
 <script type="module">
+  import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
+
   const CDN_BASE_URL = 'https://pub-fd6036bfc4d84b359e94558bed250b7c.r2.dev';
   const DEFAULT_ENDPOINT = 'https://97a82140773b3561df737fca1289618a.r2.cloudflarestorage.com';
   const DEFAULT_KEY = '305011393627d3e6b541c6ade7394e5d';
@@ -395,16 +397,17 @@
     const statsEl = document.getElementById('stats-count');
     statsEl.textContent = 'Fetching catalog from R2...';
     try {
-      const res = await fetch(resolveMediaUrl('data/reels.json'), { cache: 'no-cache' });
+      // Use cache-busting timestamp to never load stale service worker / browser cache
+      const res = await fetch(resolveMediaUrl('data/reels.json') + '?t=' + Date.now(), { cache: 'no-store' });
       if (res.ok) {
         masterCatalog = await res.json();
       } else {
         masterCatalog = [];
       }
     } catch (err) {
-      console.warn('Failed to fetch from CDN, loading local:', err);
+      console.warn('Failed to fetch from CDN, checking local:', err);
       try {
-        const local = await fetch('data/reels.json');
+        const local = await fetch('data/reels.json?t=' + Date.now(), { cache: 'no-store' });
         masterCatalog = await local.json();
       } catch (e) {
         masterCatalog = [];
@@ -426,7 +429,7 @@
         <div style="text-align: center; padding: 60px 20px; color: var(--text-muted); background: var(--card-bg); border-radius: var(--radius-md); border: 1px dashed var(--border);">
           <div style="font-size: 40px; margin-bottom: 10px;">📭</div>
           <h3 style="color: #fff; margin-bottom: 6px;">No reels in library</h3>
-          <p style="font-size: 13px;">Send an Instagram reel URL to your Telegram bot or run ingest_reel.py on your Pi to populate the library.</p>
+          <p style="font-size: 13px;">Send an Instagram reel URL to your Telegram bot to process your first reel!</p>
         </div>
       `;
       return;
@@ -497,51 +500,39 @@
     btn.disabled = true;
     btn.textContent = 'Deleting from R2...';
 
-    const endpoint = localStorage.getItem('r2_cfg_endpoint') || DEFAULT_ENDPOINT;
+    const endpoint = (localStorage.getItem('r2_cfg_endpoint') || DEFAULT_ENDPOINT).replace(/\/+$/, '');
     const accessKeyId = localStorage.getItem('r2_cfg_key') || DEFAULT_KEY;
     const secretAccessKey = localStorage.getItem('r2_cfg_secret') || DEFAULT_SECRET;
 
     try {
-      // Use AWS S3 Client via dynamic ESM import
-      const { S3Client, ListObjectsV2Command, DeleteObjectsCommand, PutObjectCommand } = await import('https://esm.sh/@aws-sdk/client-s3@3.540.0');
-
-      const s3 = new S3Client({
-        region: 'auto',
-        endpoint: endpoint,
-        credentials: {
-          accessKeyId: accessKeyId,
-          secretAccessKey: secretAccessKey
-        }
+      const client = new AwsClient({
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
+        service: 's3',
+        region: 'auto'
       });
 
-      // 1. List objects with prefix data/reels/<id>/
-      const listCmd = new ListObjectsV2Command({
-        Bucket: BUCKET_NAME,
-        Prefix: `data/reels/${id}/`
-      });
-      const listRes = await s3.send(listCmd);
-      const objects = listRes.Contents || [];
+      // 1. List all objects under data/reels/<id>/
+      const listUrl = `${endpoint}/${BUCKET_NAME}/?list-type=2&prefix=data/reels/${id}/`;
+      const listRes = await client.fetch(listUrl);
+      const xmlText = await listRes.text();
 
-      if (objects.length > 0) {
-        // Delete objects
-        const delCmd = new DeleteObjectsCommand({
-          Bucket: BUCKET_NAME,
-          Delete: {
-            Objects: objects.map(o => ({ Key: o.Key }))
-          }
-        });
-        await s3.send(delCmd);
+      const keys = [...xmlText.matchAll(/<Key>(.*?)<\/Key>/g)].map(m => m[1]);
+
+      // 2. Delete each object
+      for (const key of keys) {
+        const deleteUrl = `${endpoint}/${BUCKET_NAME}/${key}`;
+        await client.fetch(deleteUrl, { method: 'DELETE' });
       }
 
-      // 2. Update catalog data/reels.json on R2
+      // 3. Update catalog data/reels.json on R2
       const updatedCatalog = masterCatalog.filter(r => r.id !== id);
-      const putCatCmd = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: 'data/reels.json',
-        Body: JSON.stringify(updatedCatalog, null, 2),
-        ContentType: 'application/json'
+      const putCatUrl = `${endpoint}/${BUCKET_NAME}/data/reels.json`;
+      await client.fetch(putCatUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedCatalog, null, 2)
       });
-      await s3.send(putCatCmd);
 
       masterCatalog = updatedCatalog;
       renderTable(masterCatalog);

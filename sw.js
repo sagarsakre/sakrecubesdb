@@ -1,5 +1,5 @@
-const CACHE_NAME = 'reelshot-shell-v1';
-const MEDIA_CACHE = 'reelshot-media-v1';
+const CACHE_NAME = 'reelshot-shell-v2';
+const MEDIA_CACHE = 'reelshot-media-v2';
 
 const SHELL_ASSETS = [
   './',
@@ -7,8 +7,7 @@ const SHELL_ASSETS = [
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/apple-touch-icon.png',
-  './data/reels.json'
+  './icons/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -24,6 +23,7 @@ self.addEventListener('activate', (event) => {
       Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME && key !== MEDIA_CACHE) {
+            console.log('Evicting old cache:', key);
             return caches.delete(key);
           }
         })
@@ -36,12 +36,29 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Cache-first for GIFs, images, and reel JSONs
+  // 1. Never cache-first for reels.json or query-busted URLs: always network first!
+  if (url.pathname.endsWith('reels.json') || url.searchParams.has('t')) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(MEDIA_CACHE).then((cache) => cache.put(event.request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // 2. Cache-first for heavy media (GIFs, JPGs, MP4s, individual reel.json)
   if (
     url.pathname.endsWith('.gif') ||
     url.pathname.endsWith('.jpg') ||
     url.pathname.endsWith('.jpeg') ||
     url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.mp4') ||
     url.pathname.endsWith('.json')
   ) {
     event.respondWith(
@@ -64,7 +81,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network first with cache fallback for HTML and app shell
+  // 3. Network first with cache fallback for HTML and app shell
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {

@@ -1189,7 +1189,8 @@
     // Load Master Catalog from Cloudflare R2 CDN (fallback to local/offline cache)
     async function loadMasterCatalog() {
       try {
-        const res = await fetch(resolveMediaUrl('data/reels.json'), { cache: 'no-cache' });
+        const cacheBuster = '?t=' + Date.now();
+        const res = await fetch(resolveMediaUrl('data/reels.json') + cacheBuster, { cache: 'no-store' });
         if (res.ok) {
           masterCatalog = await res.json();
           localStorage.setItem('reelshot_cached_catalog', JSON.stringify(masterCatalog));
@@ -1202,18 +1203,10 @@
           masterCatalog = JSON.parse(cached);
         } else {
           try {
-            const localRes = await fetch('data/reels.json');
+            const localRes = await fetch('data/reels.json?t=' + Date.now(), { cache: 'no-store' });
             masterCatalog = await localRes.json();
           } catch (e) {
-            masterCatalog = [{
-              id: 'bangalore-escape',
-              title: 'Bangalore City Escape',
-              subtitle: '2.5 Hours from Bangalore (Resort Reel)',
-              thumbnail: 'data/reels/bangalore-escape/thumbnail.jpg',
-              reel_json: 'data/reels/bangalore-escape/reel.json',
-              total_shots: 20,
-              created_at: '2026-11-21T13:26:00Z'
-            }];
+            masterCatalog = [];
           }
         }
       }
