@@ -259,8 +259,12 @@ def main():
         })
         print(f"   [{idx:02d}/{len(intervals)}] {dur:.2f}s -> {gif_filename} ({size_mb:.2f} MB)")
 
-    # 4. Generate reel.json
+    # 4. Generate reel.json & compute total package size
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    all_package_files = [video_out, thumb_path] + [output_dir / s["clip"] for s in shots]
+    total_bytes = sum(f.stat().st_size for f in all_package_files if f.exists())
+    size_mb = round(total_bytes / (1024 * 1024), 1)
+
     reel_data = {
         "id": reel_id,
         "title": title,
@@ -268,6 +272,8 @@ def main():
         "thumbnail": "thumbnail.jpg",
         "video": "video.mp4",
         "total_shots": len(shots),
+        "total_bytes": total_bytes,
+        "size_mb": size_mb,
         "created_at": now_iso,
         "shots": shots
     }
@@ -317,6 +323,8 @@ def main():
             "video": f"data/reels/{reel_id}/video.mp4",
             "reel_json": f"data/reels/{reel_id}/reel.json",
             "total_shots": len(shots),
+            "total_bytes": total_bytes,
+            "size_mb": size_mb,
             "created_at": now_iso
         })
         catalog_list.sort(key=lambda r: r.get("created_at", ""), reverse=True)
@@ -357,6 +365,7 @@ def main():
         "reel_id": reel_id,
         "title": title,
         "shots_count": len(shots),
+        "total_size": f"{size_mb} MB",
         "created_at": now_iso,
         "cdn_url": f"{CDN_PUBLIC_URL}/data/reels/{reel_id}/reel.json"
     }

@@ -451,6 +451,7 @@
           <div class="reel-id-tag">ID: ${reel.id}</div>
           <div class="reel-meta-info">
             <span>🎬 ${reel.total_shots || 0} Shots (24 FPS)</span>
+            ${reel.size_mb ? `<span style="color: #cbd5e1; font-weight: 500;">📦 ${reel.size_mb} MB</span>` : ''}
             <span>📅 ${dateStr}</span>
             ${reel.subtitle ? `<span>📍 ${reel.subtitle}</span>` : ''}
           </div>

@@ -444,6 +444,25 @@
       opacity: 0.7;
     }
 
+    /* Reel Size Pill */
+    .reel-size-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .reel-size-pill.offline {
+      background: rgba(16, 185, 129, 0.12);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
     /* Full Reel Video Player Card */
     .reel-video-card {
       margin: 16px 0 20px;
@@ -925,6 +944,9 @@
         <button class="back-btn" onclick="showHomeView()">← Trip Board</button>
         
         <div class="detail-nav-actions">
+          <!-- Size Badge: Shows MB next to download button, or offline indicator when downloaded -->
+          <span class="reel-size-pill" id="detail-size-badge" style="display: none;"></span>
+
           <!-- Circular Download Button: Sits next to Options, automatically disappears once downloaded -->
           <div class="dl-btn-container hidden" id="reel-dl-btn" title="Download for Offline Use" onclick="downloadCurrentReelOffline()">
             <svg class="progress-ring" width="32" height="32">
@@ -1023,8 +1045,8 @@
         <button class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;" onclick="resetChecksForCurrentReel()">
           🔄 Reset All Checkmarks
         </button>
-        <button class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;" onclick="clearOfflineFilesForCurrentReel()">
-          🧹 Clear Downloaded Offline GIFs (Free Space)
+        <button class="btn btn-secondary" id="btn-clear-offline" style="width: 100%; text-align: left; padding: 12px;" onclick="clearOfflineFilesForCurrentReel()">
+          🧹 Clear Downloaded Offline Media (Free Space)
         </button>
         <button class="btn btn-danger" style="width: 100%; text-align: left; padding: 12px;" onclick="removeCurrentReelFromBoard()">
           🗑️ Remove from Trip Board
@@ -1261,7 +1283,7 @@
             <div class="reel-badge">${total} Shots</div>
             <div class="reel-offline-chip ${isDownloaded ? 'cached' : 'online'}">
               <span>${isDownloaded ? '⚡' : '☁️'}</span>
-              <span>${isDownloaded ? 'Saved Offline' : 'Online'}</span>
+              <span>${isDownloaded ? (reel.size_mb ? `${reel.size_mb} MB` : 'Saved Offline') : (reel.size_mb ? `${reel.size_mb} MB` : 'Online')}</span>
             </div>
           </div>
           <div class="reel-info">
@@ -1353,6 +1375,7 @@
             <div class="library-item-sub">${reel.subtitle || ''}</div>
             <div class="library-item-meta">
               <span>${reel.total_shots} shots</span>
+              ${reel.size_mb ? `<span>• ${reel.size_mb} MB</span>` : ''}
               ${dateStr ? `<span>• ${dateStr}</span>` : ''}
             </div>
           </div>
@@ -1482,16 +1505,36 @@
       const dlBtn = document.getElementById('reel-dl-btn');
       const inner = document.getElementById('dl-btn-inner');
       const fillRing = document.getElementById('dl-progress-ring-fill');
+      const sizeBadge = document.getElementById('detail-size-badge');
 
       const isDownloaded = await isReelDownloaded(currentReel.id);
+      const sizeStr = currentReel.size_mb ? `${currentReel.size_mb} MB` : '';
 
       if (isDownloaded) {
         dlBtn.classList.add('hidden');
+        if (sizeBadge) {
+          if (sizeStr) {
+            sizeBadge.textContent = `⚡ ${sizeStr}`;
+            sizeBadge.className = 'reel-size-pill offline';
+            sizeBadge.style.display = 'inline-flex';
+          } else {
+            sizeBadge.style.display = 'none';
+          }
+        }
       } else {
         dlBtn.classList.remove('hidden');
         fillRing.style.strokeDashoffset = RING_CIRCUMFERENCE;
         fillRing.classList.remove('done');
         inner.innerHTML = '<span id="dl-icon-symbol" style="font-size: 13px;">⬇</span>';
+        if (sizeBadge) {
+          if (sizeStr) {
+            sizeBadge.textContent = sizeStr;
+            sizeBadge.className = 'reel-size-pill';
+            sizeBadge.style.display = 'inline-flex';
+          } else {
+            sizeBadge.style.display = 'none';
+          }
+        }
       }
     }
 
@@ -1567,7 +1610,7 @@
       showToast('⚡ All Shots Saved Offline!');
 
       setTimeout(() => {
-        dlBtn.classList.add('hidden');
+        updateDownloadButtonState();
       }, 1600);
     }
 
@@ -1664,13 +1707,14 @@
        ======================================================================== */
     async function clearOfflineFilesForCurrentReel() {
       if (!currentReel) return;
-      if (!confirm(`Clear downloaded offline GIFs for "${currentReel.title}"? (The reel card remains on your board, but requires internet to view)`)) return;
+      const sizeStr = currentReel.size_mb ? ` (${currentReel.size_mb} MB)` : '';
+      if (!confirm(`Clear downloaded offline media${sizeStr} for "${currentReel.title}"? (The reel card remains on your board, but requires internet to view)`)) return;
 
       await purgeReelMedia(currentReel.id);
       await setReelDownloaded(currentReel.id, false);
       await updateDownloadButtonState();
       closeOptionsModal();
-      showToast('Offline files cleared for this reel');
+      showToast('Offline media cleared for this reel');
     }
 
     // Remove from Trip Board (Wipes device storage, keeps master in library)
@@ -1707,6 +1751,11 @@
     function openOptionsModal() {
       if (currentReel) {
         document.getElementById('options-modal-reel-name').textContent = `Options for: ${currentReel.title}`;
+        const clearBtn = document.getElementById('btn-clear-offline');
+        if (clearBtn) {
+          const sizeStr = currentReel.size_mb ? `(Free up ${currentReel.size_mb} MB)` : '(Free Space)';
+          clearBtn.innerHTML = `🧹 Clear Downloaded Offline Media <span style="opacity: 0.75; font-size: 11px;">${sizeStr}</span>`;
+        }
       }
       document.getElementById('options-modal').classList.add('active');
     }
