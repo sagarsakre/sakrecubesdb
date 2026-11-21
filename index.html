@@ -970,13 +970,12 @@
         <div class="detail-sub-title" id="detail-subtitle">2.5 Hours from Bangalore (Resort Reel)</div>
       </div>
 
-      <!-- Full Video Player Card -->
+      <!-- Video Player Card -->
       <div class="reel-video-card" id="detail-video-container" style="display: none;">
         <div class="reel-video-header">
           <span style="font-size: 13px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 6px;">
-            🎬 <span>Full Reference Video</span>
+            🎬 <span>Reference Video</span>
           </span>
-          <span style="font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 10px;">Audio Included</span>
         </div>
         <div class="reel-video-wrapper">
           <video id="detail-video-player" playsinline controls preload="metadata"></video>
@@ -1552,53 +1551,63 @@
       const basePath = currentReel.reel_json ? currentReel.reel_json.substring(0, currentReel.reel_json.lastIndexOf('/') + 1) : 'data/reels/' + currentReel.id + '/';
       const videoFile = currentReel.video || 'video.mp4';
 
-      const items = [
-        { url: resolveMediaUrl(basePath + 'reel.json'), rawKey: basePath + 'reel.json' },
-        { url: resolveMediaUrl(basePath + currentReel.thumbnail), rawKey: basePath + currentReel.thumbnail },
-        { url: resolveMediaUrl(basePath + videoFile), rawKey: basePath + videoFile, isVideo: true },
-        ...currentReel.shots.map(s => ({ 
-          url: resolveMediaUrl(basePath + s.clip), 
-          rawKey: basePath + s.clip, 
-          shotId: s.id 
-        }))
-      ];
+      // 1 Video + N GIF shots
+      const totalMedia = currentReel.shots.length + 1;
+      let completedMedia = 0;
 
-      const totalItems = currentReel.shots.length;
-      let shotCount = 0;
+      // Immediately show 1 / totalMedia while video begins downloading
+      inner.innerHTML = `<span class="dl-counter-text">1/${totalMedia}</span>`;
 
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
+      // Helper function to download and cache a single asset
+      async function cacheFile(url, rawKey) {
         try {
-          const res = await fetch(item.url);
+          const res = await fetch(url);
           const blob = await res.blob();
-          await saveMediaBlob(item.url, blob, currentReel.id);
-          if (item.rawKey && item.rawKey !== item.url) {
-            await saveMediaBlob(item.rawKey, blob, currentReel.id);
+          await saveMediaBlob(url, blob, currentReel.id);
+          if (rawKey && rawKey !== url) {
+            await saveMediaBlob(rawKey, blob, currentReel.id);
           }
-
-          if (item.isVideo) {
-            const blobUrl = URL.createObjectURL(blob);
-            const vp = document.getElementById('detail-video-player');
-            if (vp) vp.src = blobUrl;
-          }
-
-          if (item.shotId) {
-            shotCount++;
-            const blobUrl = URL.createObjectURL(blob);
-            const img = document.getElementById(`img-shot-${item.shotId}`);
-            if (img) img.src = blobUrl;
-          }
+          return blob;
         } catch (e) {
-          console.warn('Download error:', item.url, e);
+          console.warn('Download error:', url, e);
+          return null;
+        }
+      }
+
+      // Step A: Cache metadata (reel.json and thumbnail.jpg) quietly
+      await cacheFile(resolveMediaUrl(basePath + 'reel.json'), basePath + 'reel.json');
+      await cacheFile(resolveMediaUrl(basePath + currentReel.thumbnail), basePath + currentReel.thumbnail);
+
+      // Step B: Download Video (Item 1 of totalMedia)
+      inner.innerHTML = `<span class="dl-counter-text">1/${totalMedia}</span>`;
+      const videoBlob = await cacheFile(resolveMediaUrl(basePath + videoFile), basePath + videoFile);
+      if (videoBlob) {
+        const blobUrl = URL.createObjectURL(videoBlob);
+        const vp = document.getElementById('detail-video-player');
+        if (vp) vp.src = blobUrl;
+      }
+      completedMedia = 1;
+      const progressPctVideo = completedMedia / totalMedia;
+      fillRing.style.strokeDashoffset = RING_CIRCUMFERENCE - (progressPctVideo * RING_CIRCUMFERENCE);
+
+      // Step C: Download each GIF shot (Items 2 to totalMedia)
+      for (let i = 0; i < currentReel.shots.length; i++) {
+        const shot = currentReel.shots[i];
+        const currentStep = completedMedia + 1;
+        inner.innerHTML = `<span class="dl-counter-text">${currentStep}/${totalMedia}</span>`;
+
+        const shotUrl = resolveMediaUrl(basePath + shot.clip);
+        const shotBlob = await cacheFile(shotUrl, basePath + shot.clip);
+        if (shotBlob) {
+          const blobUrl = URL.createObjectURL(shotBlob);
+          const img = document.getElementById(`img-shot-${shot.id}`);
+          if (img) img.src = blobUrl;
         }
 
-        const progressPct = ((i + 1) / items.length);
-        const offset = RING_CIRCUMFERENCE - (progressPct * RING_CIRCUMFERENCE);
-        fillRing.style.strokeDashoffset = offset;
-
-        if (shotCount > 0 && shotCount <= totalItems) {
-          inner.innerHTML = `<span class="dl-counter-text">${shotCount}/${totalItems}</span>`;
-        }
+        completedMedia++;
+        const pct = completedMedia / totalMedia;
+        fillRing.style.strokeDashoffset = RING_CIRCUMFERENCE - (pct * RING_CIRCUMFERENCE);
+        inner.innerHTML = `<span class="dl-counter-text">${completedMedia}/${totalMedia}</span>`;
       }
 
       await setReelDownloaded(currentReel.id, true);
@@ -1607,7 +1616,7 @@
       fillRing.classList.add('done');
       fillRing.style.strokeDashoffset = 0;
       inner.innerHTML = '<span style="color: var(--success); font-size: 14px;">✓</span>';
-      showToast('⚡ All Shots Saved Offline!');
+      showToast('⚡ All Media Saved Offline!');
 
       setTimeout(() => {
         updateDownloadButtonState();
