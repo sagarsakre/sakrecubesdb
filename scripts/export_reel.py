@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--title", help="Human-readable title. Defaults to filename.")
     parser.add_argument("--subtitle", default="", help="Optional subtitle or location info.")
     parser.add_argument("--threshold", type=float, default=0.3, help="Scene detection sensitivity (0.1 to 0.5, default 0.3)")
+    parser.add_argument("--fps", type=int, default=24, help="Output GIF framerate (default 24 fps)")
     parser.add_argument("--app-dir", default=None, help="Root path of the PWA app directory.")
     args = parser.parse_args()
 
@@ -91,9 +92,9 @@ def main():
         thumb_path
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
-    # 3. Export 640p GIFs directly
-    print(f"⏳ Step 3/4: Exporting {len(intervals)} scenes directly to 640p GIFs...")
-    vf_scale = "scale='if(gt(iw,ih), -2, min(640,iw))':'if(gt(iw,ih), min(640,ih), -2)'"
+    # 3. Export 640p GIFs directly (24 FPS, 1-pass)
+    print(f"⏳ Step 3/4: Exporting {len(intervals)} scenes directly to 640p GIFs at {args.fps} FPS...")
+    vf_scale = f"fps={args.fps},scale='if(gt(iw,ih), -2, min(640,iw))':'if(gt(iw,ih), min(640,ih), -2)'"
     shots = []
 
     for idx, (start, dur) in enumerate(intervals, 1):
