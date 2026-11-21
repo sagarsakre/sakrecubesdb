@@ -67,13 +67,7 @@ def get_content_type(file_path: Path) -> str:
 
 def upload_to_r2(s3, local_path: Path, r2_key: str):
     content_type = get_content_type(local_path)
-    with open(local_path, "rb") as f:
-        s3.put_object(
-            Bucket=R2_BUCKET,
-            Key=r2_key,
-            Body=f,
-            ContentType=content_type
-        )
+    s3.upload_file(str(local_path), R2_BUCKET, r2_key, ExtraArgs={"ContentType": content_type})
 
 def main():
     parser = argparse.ArgumentParser(description="Ingest video reel into ReelShot PWA and sync to Cloudflare R2 CDN")
@@ -261,12 +255,10 @@ def main():
             gif_p = output_dir / shot["clip"]
             files_to_upload.append((gif_p, f"data/reels/{reel_id}/{shot['clip']}"))
 
-        with ThreadPoolExecutor(max_workers=6) as executor:
-            futures = {executor.submit(upload_to_r2, s3, lp, rk): rk for lp, rk in files_to_upload}
-            for fut in as_completed(futures):
-                rk = futures[fut]
-                fut.result()
-                print(f"   ☁️ Synced to R2: {rk}")
+        total_files = len(files_to_upload)
+        for idx, (lp, rk) in enumerate(files_to_upload, 1):
+            upload_to_r2(s3, lp, rk)
+            print(f"   [{idx:02d}/{total_files}] ☁️ Synced to R2: {rk}")
 
         # Update Master Catalog on R2
         print("⏳ Step 5/5: Updating Master Catalog (data/reels.json) on R2...")
