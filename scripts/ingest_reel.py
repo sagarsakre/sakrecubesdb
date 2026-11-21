@@ -77,23 +77,79 @@ def upload_to_r2(s3, local_path: Path, r2_key: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Ingest video reel into ReelShot PWA and sync to Cloudflare R2 CDN")
-    parser.add_argument("video", help="Path to input video file (mp4/mov)")
-    parser.add_argument("--id", help="Unique reel ID (slug). Defaults to cleaned filename.")
-    parser.add_argument("--title", help="Human-readable title. Defaults to filename.")
+    parser.add_argument("input", help="Path to input video file (mp4/mov) OR direct video URL (Instagram/YouTube)")
+    parser.add_argument("--id", help="Unique reel ID (slug). Defaults to cleaned title.")
+    parser.add_argument("--title", help="Human-readable title. Defaults to post title or filename.")
     parser.add_argument("--subtitle", default="", help="Optional subtitle or location.")
     parser.add_argument("--threshold", type=float, default=0.28, help="Scene detection sensitivity (default 0.28)")
     parser.add_argument("--clean", action="store_true", help="Delete local output GIFs after uploading to R2")
     parser.add_argument("--delete-source", action="store_true", help="Delete the source video after processing")
     args = parser.parse_args()
 
-    video_path = os.path.abspath(args.video)
-    if not os.path.isfile(video_path):
-        print(json.dumps({"status": "error", "message": f"Video not found: {video_path}"}))
-        sys.exit(1)
+    input_target = args.input
+    downloaded_temp_video = False
 
-    base_name = os.path.splitext(os.path.basename(video_path))[0]
-    reel_id = args.id or re.sub(r'[^a-zA-Z0-9_\-]+', '-', base_name).strip('-').lower()
-    title = args.title or base_name
+    # Check if input is a URL
+    if input_target.startswith("http://") or input_target.startswith("https://"):
+        print(f"🌐 URL detected: {input_target}")
+        print("⏳ Step 0/5: Downloading video via yt-dlp...")
+        
+        # Locate yt-dlp binary (standard PATH or ~/.local/bin)
+        ytdlp_bin = "yt-dlp"
+        user_local_ytdlp = Path.home() / ".local" / "bin" / "yt-dlp"
+        if user_local_ytdlp.exists():
+            ytdlp_bin = str(user_local_ytdlp)
+
+        temp_out = f"/tmp/reelshot_dl_{int(datetime.now().timestamp())}.%(ext)s"
+        cmd_dl = [ytdlp_bin, input_target, "-o", temp_out, "--print-json"]
+        
+        proc_dl = subprocess.run(cmd_dl, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if proc_dl.returncode != 0:
+            print(json.dumps({"status": "error", "message": f"yt-dlp download failed: {proc_dl.stderr}"}))
+            sys.exit(1)
+
+        # Parse downloaded video info
+        info = {}
+        for line in proc_dl.stdout.splitlines():
+            try:
+                info = json.loads(line)
+                break
+            except Exception:
+                pass
+
+        # Find actual downloaded file on disk
+        video_path = None
+        for ext in [".mp4", ".mov", ".mkv", ".webm"]:
+            candidate = temp_out.replace(".%(ext)s", ext)
+            if os.path.isfile(candidate):
+                video_path = candidate
+                break
+
+        if not video_path:
+            # Fallback scan in /tmp
+            matches = list(Path("/tmp").glob("reelshot_dl_*.*"))
+            if matches:
+                video_path = str(matches[-1])
+
+        if not video_path or not os.path.isfile(video_path):
+            print(json.dumps({"status": "error", "message": "Failed to locate downloaded video file"}))
+            sys.exit(1)
+
+        downloaded_temp_video = True
+        auto_title = info.get("title") or info.get("description", "").split("\n")[0][:45] or "Instagram Reel"
+        title = args.title or auto_title.strip()
+        base_name = re.sub(r'[^a-zA-Z0-9_\-]+', '-', title).strip('-').lower()
+        reel_id = args.id or base_name[:35]
+        print(f"   ✅ Downloaded: {video_path} ({os.path.getsize(video_path) / (1024*1024):.2f} MB)")
+    else:
+        video_path = os.path.abspath(input_target)
+        if not os.path.isfile(video_path):
+            print(json.dumps({"status": "error", "message": f"Video not found: {video_path}"}))
+            sys.exit(1)
+
+        base_name = os.path.splitext(os.path.basename(video_path))[0]
+        reel_id = args.id or re.sub(r'[^a-zA-Z0-9_\-]+', '-', base_name).strip('-').lower()
+        title = args.title or base_name
     subtitle = args.subtitle
 
     output_dir = APP_DIR / "data" / "reels" / reel_id
@@ -260,9 +316,13 @@ def main():
             (output_dir / shot["clip"]).unlink(missing_ok=True)
         print("   Done.")
 
-    if args.delete_source:
-        print(f"🗑️ Deleting processed source video: {video_path}")
-        os.remove(video_path)
+    if args.delete_source or downloaded_temp_video:
+        if downloaded_temp_video or args.delete_source:
+            print(f"🗑️ Deleting temporary downloaded video: {video_path}")
+            try:
+                os.remove(video_path)
+            except Exception:
+                pass
 
     result = {
         "status": "success",
