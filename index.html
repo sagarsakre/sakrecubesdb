@@ -1032,12 +1032,29 @@
     }
 
     async function getMediaBlob(url) {
+      if (!url) return null;
       const db = await openDB();
       return new Promise((resolve) => {
         const tx = db.transaction('media', 'readonly');
         const store = tx.objectStore('media');
         const req = store.get(url);
-        req.onsuccess = () => resolve(req.result ? req.result.blob : null);
+        req.onsuccess = () => {
+          if (req.result) {
+            resolve(req.result.blob);
+          } else {
+            // Check fallback variant (e.g. resolved full CDN URL vs relative key)
+            const fallbackKey = url.startsWith('http') 
+              ? url.replace(/^https?:\/\/[^\/]+\//, '') 
+              : resolveMediaUrl(url);
+            if (fallbackKey && fallbackKey !== url) {
+              const req2 = store.get(fallbackKey);
+              req2.onsuccess = () => resolve(req2.result ? req2.result.blob : null);
+              req2.onerror = () => resolve(null);
+            } else {
+              resolve(null);
+            }
+          }
+        };
         req.onerror = () => resolve(null);
       });
     }
@@ -1086,8 +1103,16 @@
     /* ========================================================================
        MASTER CATALOG & ACTIVE TRIP BOARD STATE
        ======================================================================== */
+    const CDN_BASE_URL = 'https://pub-fd6036bfc4d84b359e94558bed250b7c.r2.dev';
+
+    function resolveMediaUrl(path) {
+      if (!path) return '';
+      if (path.startsWith('http://') || path.startsWith('https://')) return path;
+      return `${CDN_BASE_URL}/${path.replace(/^\/+/, '')}`;
+    }
+
     let currentReel = null;
-    let masterCatalog = [];       // Master archive from server (data/reels.json)
+    let masterCatalog = [];       // Master archive from server / Cloudflare R2
     let selectedLibraryIds = new Set();
     let isDownloading = false;
     const objectUrlMap = new Map();
@@ -1107,21 +1132,36 @@
       localStorage.setItem('reelshot_active_reel_ids', JSON.stringify(ids));
     }
 
-    // Load Master Catalog from server
+    // Load Master Catalog from Cloudflare R2 CDN (fallback to local/offline cache)
     async function loadMasterCatalog() {
       try {
-        const res = await fetch('data/reels.json');
-        masterCatalog = await res.json();
+        const res = await fetch(resolveMediaUrl('data/reels.json'), { cache: 'no-cache' });
+        if (res.ok) {
+          masterCatalog = await res.json();
+          localStorage.setItem('reelshot_cached_catalog', JSON.stringify(masterCatalog));
+        } else {
+          throw new Error('CDN status ' + res.status);
+        }
       } catch (err) {
-        masterCatalog = [{
-          id: 'bangalore-escape',
-          title: 'Bangalore City Escape',
-          subtitle: '2.5 Hours from Bangalore (Resort Reel)',
-          thumbnail: 'data/reels/bangalore-escape/thumbnail.jpg',
-          reel_json: 'data/reels/bangalore-escape/reel.json',
-          total_shots: 20,
-          created_at: '2026-11-21T13:26:00Z'
-        }];
+        const cached = localStorage.getItem('reelshot_cached_catalog');
+        if (cached) {
+          masterCatalog = JSON.parse(cached);
+        } else {
+          try {
+            const localRes = await fetch('data/reels.json');
+            masterCatalog = await localRes.json();
+          } catch (e) {
+            masterCatalog = [{
+              id: 'bangalore-escape',
+              title: 'Bangalore City Escape',
+              subtitle: '2.5 Hours from Bangalore (Resort Reel)',
+              thumbnail: 'data/reels/bangalore-escape/thumbnail.jpg',
+              reel_json: 'data/reels/bangalore-escape/reel.json',
+              total_shots: 20,
+              created_at: '2026-11-21T13:26:00Z'
+            }];
+          }
+        }
       }
 
       // Ensure chronological ordering: newest first
@@ -1166,9 +1206,11 @@
         card.className = 'reel-card';
         card.onclick = () => openReel(reel);
 
+        const thumbUrl = resolveMediaUrl(reel.thumbnail);
+
         card.innerHTML = `
           <div class="reel-cover-box">
-            <img class="reel-cover-img" id="thumb-${reel.id}" src="${reel.thumbnail}" alt="${reel.title}" loading="lazy">
+            <img class="reel-cover-img" id="thumb-${reel.id}" src="${thumbUrl}" alt="${reel.title}" loading="lazy">
             <div class="reel-badge">${total} Shots</div>
             <div class="reel-offline-chip ${isDownloaded ? 'cached' : 'online'}">
               <span>${isDownloaded ? '⚡' : '☁️'}</span>
@@ -1190,7 +1232,7 @@
         listEl.appendChild(card);
 
         // Load thumbnail from IndexedDB if offline cached
-        getMediaBlob(reel.thumbnail).then(blob => {
+        getMediaBlob(thumbUrl).then(blob => {
           if (blob) {
             const blobUrl = URL.createObjectURL(blob);
             const img = document.getElementById(`thumb-${reel.id}`);
@@ -1255,9 +1297,10 @@
         }
 
         const dateStr = reel.created_at ? new Date(reel.created_at).toLocaleDateString() : '';
+        const thumbUrl = resolveMediaUrl(reel.thumbnail);
 
         item.innerHTML = `
-          <img class="library-item-thumb" src="${reel.thumbnail}" alt="${reel.title}" loading="lazy">
+          <img class="library-item-thumb" src="${thumbUrl}" alt="${reel.title}" loading="lazy">
           <div class="library-item-info">
             <div class="library-item-title">${reel.title}</div>
             <div class="library-item-sub">${reel.subtitle || ''}</div>
@@ -1323,11 +1366,12 @@
        REEL DETAIL VIEW
        ======================================================================== */
     async function openReel(reelSummary) {
+      const fullJsonUrl = resolveMediaUrl(reelSummary.reel_json);
       try {
-        const res = await fetch(reelSummary.reel_json);
+        const res = await fetch(fullJsonUrl);
         currentReel = await res.json();
       } catch (err) {
-        const blob = await getMediaBlob(reelSummary.reel_json);
+        const blob = await getMediaBlob(fullJsonUrl) || await getMediaBlob(reelSummary.reel_json);
         if (blob) {
           const text = await blob.text();
           currentReel = JSON.parse(text);
@@ -1391,9 +1435,13 @@
       const basePath = currentReel.reel_json ? currentReel.reel_json.substring(0, currentReel.reel_json.lastIndexOf('/') + 1) : 'data/reels/' + currentReel.id + '/';
 
       const items = [
-        { url: basePath + 'reel.json' },
-        { url: basePath + currentReel.thumbnail },
-        ...currentReel.shots.map(s => ({ url: basePath + s.clip, shotId: s.id }))
+        { url: resolveMediaUrl(basePath + 'reel.json'), rawKey: basePath + 'reel.json' },
+        { url: resolveMediaUrl(basePath + currentReel.thumbnail), rawKey: basePath + currentReel.thumbnail },
+        ...currentReel.shots.map(s => ({ 
+          url: resolveMediaUrl(basePath + s.clip), 
+          rawKey: basePath + s.clip, 
+          shotId: s.id 
+        }))
       ];
 
       const totalItems = currentReel.shots.length;
@@ -1405,6 +1453,9 @@
           const res = await fetch(item.url);
           const blob = await res.blob();
           await saveMediaBlob(item.url, blob, currentReel.id);
+          if (item.rawKey && item.rawKey !== item.url) {
+            await saveMediaBlob(item.rawKey, blob, currentReel.id);
+          }
 
           if (item.shotId) {
             shotCount++;
@@ -1455,7 +1506,7 @@
         card.id = `shot-${shot.id}`;
         card.style.order = isDone ? '1' : '0';
 
-        const fullClipUrl = basePath + shot.clip;
+        const fullClipUrl = resolveMediaUrl(basePath + shot.clip);
 
         card.innerHTML = `
           <div class="shot-header" onclick="toggleShot(${shot.id})">
