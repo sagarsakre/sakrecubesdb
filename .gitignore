@@ -1,0 +1,19 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Heavy Media & Assets (Served via Cloud CDN / Cloudflare R2)
+data/reels/
+*.gif
+*.mp4
+*.mov
+*.jpg
+!icons/*.png
+!icons/*.svg
