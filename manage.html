@@ -354,14 +354,22 @@
 
 <!-- Settings Modal for R2 Credentials (for direct browser deletion) -->
 <div class="modal-backdrop" id="settings-modal">
-  <div class="modal-box">
-    <h3 class="modal-title">⚙️ Cloudflare R2 Credentials</h3>
+  <div class="modal-box" style="max-width: 520px;">
+    <h3 class="modal-title">⚙️ Cloudflare R2 Settings & CORS</h3>
     <div class="modal-body">
-      Credentials are stored securely only in your browser's local storage to authorize delete requests directly to Cloudflare R2.
+      Credentials are stored securely in your browser's local storage to authorize delete requests directly to Cloudflare R2.
       <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
         <input type="text" id="cfg-endpoint" placeholder="S3 Endpoint URL" style="width: 100%; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); color: #fff; border-radius: 6px;">
         <input type="text" id="cfg-key" placeholder="Access Key ID" style="width: 100%; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); color: #fff; border-radius: 6px;">
         <input type="password" id="cfg-secret" placeholder="Secret Access Key" style="width: 100%; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); color: #fff; border-radius: 6px;">
+      </div>
+
+      <div style="margin-top: 16px; padding: 12px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px;">
+        <div style="color: #fbbf24; font-weight: 600; font-size: 12px; margin-bottom: 6px;">⚠️ Cloudflare R2 CORS Requirement</div>
+        <div style="font-size: 11px; color: #cbd5e1; line-height: 1.4;">
+          Cloudflare R2 blocks browser DELETE & PUT requests until a CORS Policy is enabled. In Cloudflare Dashboard &rarr; <b>R2</b> &rarr; <b>sakrecubesdb-assets</b> &rarr; <b>Settings</b> &rarr; <b>CORS Policy</b>, paste:
+        </div>
+        <textarea readonly style="width: 100%; height: 90px; font-family: monospace; font-size: 10px; margin-top: 6px; background: #000; color: #34d399; border: 1px solid var(--border); border-radius: 4px; padding: 6px;" id="cors-json-sample"></textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -541,17 +549,42 @@
       showToast(`✅ Successfully deleted "${title}" from Cloudflare R2!`);
     } catch (err) {
       console.error('Delete error:', err);
-      alert('Delete failed: ' + err.message + '\n\nYou can also delete via terminal: python3 scripts/delete_reel.py ' + id);
+      const isCors = err.message && (err.message.includes('fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'));
+      if (isCors) {
+        alert(
+          '⚠️ Delete failed: Browser CORS Blocked by Cloudflare R2\n\n' +
+          'Cloudflare R2 blocks browser DELETE & PUT requests by default until a CORS Policy is configured in the Cloudflare bucket settings.\n\n' +
+          'To enable 1-click web deletion:\n' +
+          '1. In Cloudflare Dashboard -> R2 -> sakrecubesdb-assets -> Settings\n' +
+          '2. Under "CORS Policy", click Add and allow methods: GET, PUT, POST, DELETE, HEAD\n\n' +
+          'Or run in terminal on Mac / Pi:\n' +
+          'python3 scripts/delete_reel.py ' + id
+        );
+      } else {
+        alert('Delete failed: ' + err.message + '\n\nYou can also delete via terminal: python3 scripts/delete_reel.py ' + id);
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = 'Delete from R2';
     }
   };
 
+  const CORS_SAMPLE = JSON.stringify([
+    {
+      "AllowedOrigins": ["https://sagarsakre.github.io", "http://localhost:3000", "http://localhost:8000", "*"],
+      "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 3600
+    }
+  ], null, 2);
+
   window.openSettingsModal = function() {
     document.getElementById('cfg-endpoint').value = localStorage.getItem('r2_cfg_endpoint') || DEFAULT_ENDPOINT;
     document.getElementById('cfg-key').value = localStorage.getItem('r2_cfg_key') || DEFAULT_KEY;
     document.getElementById('cfg-secret').value = localStorage.getItem('r2_cfg_secret') || DEFAULT_SECRET;
+    const corsSampleEl = document.getElementById('cors-json-sample');
+    if (corsSampleEl) corsSampleEl.value = CORS_SAMPLE;
     document.getElementById('settings-modal').classList.add('active');
   };
 
