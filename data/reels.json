@@ -1,14 +1,26 @@
 [
   {
-    "id": "video-by-chillystudio",
-    "title": "Video by chillystudio",
-    "subtitle": "",
-    "thumbnail": "data/reels/video-by-chillystudio/thumbnail.jpg",
-    "video": "data/reels/video-by-chillystudio/video.mp4",
-    "reel_json": "data/reels/video-by-chillystudio/reel.json",
+    "id": "this-restaurant-near-ben-debzrvxypxj",
+    "title": "This restaurant near Bengaluru is open till 6 AM!",
+    "subtitle": "@Shruthi Sathyan",
+    "thumbnail": "data/reels/this-restaurant-near-ben-debzrvxypxj/thumbnail.jpg",
+    "video": "data/reels/this-restaurant-near-ben-debzrvxypxj/video.mp4",
+    "reel_json": "data/reels/this-restaurant-near-ben-debzrvxypxj/reel.json",
+    "total_shots": 53,
+    "total_bytes": 329123328,
+    "size_mb": 313.9,
+    "created_at": "2026-11-21T19:46:15Z"
+  },
+  {
+    "id": "if-you-re-doing-the-bang-ddvshcojfal",
+    "title": "If you\u2019re doing the Bangalore\u2013Mysore drive anytime",
+    "subtitle": "@Shruthi Sathyan",
+    "thumbnail": "data/reels/if-you-re-doing-the-bang-ddvshcojfal/thumbnail.jpg",
+    "video": "data/reels/if-you-re-doing-the-bang-ddvshcojfal/video.mp4",
+    "reel_json": "data/reels/if-you-re-doing-the-bang-ddvshcojfal/reel.json",
     "total_shots": 47,
     "total_bytes": 195717973,
     "size_mb": 186.7,
-    "created_at": "2026-11-21T19:36:23Z"
+    "created_at": "2026-11-21T19:42:57Z"
   }
 ]
