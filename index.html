@@ -444,6 +444,41 @@
       opacity: 0.7;
     }
 
+    /* Full Reel Video Player Card */
+    .reel-video-card {
+      margin: 16px 0 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+    .reel-video-header {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .reel-video-wrapper {
+      position: relative;
+      width: 100%;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      max-height: 480px;
+      overflow: hidden;
+    }
+    .reel-video-wrapper video {
+      width: 100%;
+      max-height: 480px;
+      object-fit: contain;
+      display: block;
+      outline: none;
+    }
+
     .shot-header {
       padding: 14px 16px;
       display: flex;
@@ -869,6 +904,9 @@
       <div class="section-title">
         <span id="home-board-title">Trip Board</span>
         <div class="home-actions">
+          <a href="manage.html" class="btn btn-secondary" style="text-decoration: none; padding: 7px 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; border-radius: 20px;">
+            ⚙️ Manage
+          </a>
           <button class="btn-library-trigger" onclick="openLibraryModal()">
             📚 Browse Library
           </button>
@@ -910,6 +948,19 @@
         <div class="detail-sub-title" id="detail-subtitle">2.5 Hours from Bangalore (Resort Reel)</div>
       </div>
 
+      <!-- Full Video Player Card -->
+      <div class="reel-video-card" id="detail-video-container" style="display: none;">
+        <div class="reel-video-header">
+          <span style="font-size: 13px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 6px;">
+            🎬 <span>Full Reference Video</span>
+          </span>
+          <span style="font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 10px;">Audio Included</span>
+        </div>
+        <div class="reel-video-wrapper">
+          <video id="detail-video-player" playsinline controls preload="metadata"></video>
+        </div>
+      </div>
+
       <!-- Sticky Counter Banner -->
       <div class="counter-banner">
         <div class="counter-row">
@@ -938,7 +989,10 @@
           <span>📚 Master Reel Library</span>
           <span id="library-count-badge" style="font-size: 12px; color: var(--text-muted); font-weight: 500;">(0 available)</span>
         </div>
-        <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 13px; border-radius: 20px;" onclick="closeLibraryModal()">✕ Done</button>
+        <div style="display: flex; gap: 8px;">
+          <a href="manage.html" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; text-decoration: none;">⚙️ Manage</a>
+          <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 13px; border-radius: 20px;" onclick="closeLibraryModal()">✕ Done</button>
+        </div>
       </div>
 
       <div class="library-search-box">
@@ -1384,6 +1438,25 @@
       document.getElementById('detail-title').textContent = currentReel.title;
       document.getElementById('detail-subtitle').textContent = currentReel.subtitle || '';
 
+      // Setup Full Video Player with Audio
+      const videoContainer = document.getElementById('detail-video-container');
+      const videoPlayer = document.getElementById('detail-video-player');
+      const basePath = currentReel.reel_json ? currentReel.reel_json.substring(0, currentReel.reel_json.lastIndexOf('/') + 1) : 'data/reels/' + currentReel.id + '/';
+
+      const videoFile = currentReel.video || (reelSummary && reelSummary.video ? reelSummary.video.split('/').pop() : 'video.mp4');
+      const rawVideoUrl = basePath + videoFile;
+      const fullVideoUrl = resolveMediaUrl(rawVideoUrl);
+
+      // Check if video exists in IndexedDB (offline) or stream from Cloudflare R2
+      const cachedVideoBlob = await getMediaBlob(fullVideoUrl) || await getMediaBlob(rawVideoUrl);
+      if (cachedVideoBlob) {
+        videoPlayer.src = URL.createObjectURL(cachedVideoBlob);
+        videoContainer.style.display = 'block';
+      } else {
+        videoPlayer.src = fullVideoUrl;
+        videoContainer.style.display = 'block';
+      }
+
       await updateDownloadButtonState();
       await renderShots(currentReel);
       updateProgress();
@@ -1394,6 +1467,14 @@
     }
 
     function showHomeView() {
+      // Pause and unload video player to save memory and stop audio
+      const videoPlayer = document.getElementById('detail-video-player');
+      if (videoPlayer) {
+        videoPlayer.pause();
+        videoPlayer.removeAttribute('src');
+        videoPlayer.load();
+      }
+
       document.getElementById('view-detail').classList.remove('active');
       document.getElementById('view-home').classList.add('active');
       document.getElementById('reel-dl-btn').classList.add('hidden');
@@ -1433,10 +1514,12 @@
       const fillRing = document.getElementById('dl-progress-ring-fill');
 
       const basePath = currentReel.reel_json ? currentReel.reel_json.substring(0, currentReel.reel_json.lastIndexOf('/') + 1) : 'data/reels/' + currentReel.id + '/';
+      const videoFile = currentReel.video || 'video.mp4';
 
       const items = [
         { url: resolveMediaUrl(basePath + 'reel.json'), rawKey: basePath + 'reel.json' },
         { url: resolveMediaUrl(basePath + currentReel.thumbnail), rawKey: basePath + currentReel.thumbnail },
+        { url: resolveMediaUrl(basePath + videoFile), rawKey: basePath + videoFile, isVideo: true },
         ...currentReel.shots.map(s => ({ 
           url: resolveMediaUrl(basePath + s.clip), 
           rawKey: basePath + s.clip, 
@@ -1455,6 +1538,12 @@
           await saveMediaBlob(item.url, blob, currentReel.id);
           if (item.rawKey && item.rawKey !== item.url) {
             await saveMediaBlob(item.rawKey, blob, currentReel.id);
+          }
+
+          if (item.isVideo) {
+            const blobUrl = URL.createObjectURL(blob);
+            const vp = document.getElementById('detail-video-player');
+            if (vp) vp.src = blobUrl;
           }
 
           if (item.shotId) {

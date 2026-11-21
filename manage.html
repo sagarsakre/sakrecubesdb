@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ReelShot Library Manager</title>
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --surface: #131b2e;
+      --surface-hover: #1c263f;
+      --card-bg: #111726;
+      --border: #232d42;
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --success: #10b981;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px 16px 60px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    .back-link:hover {
+      background: rgba(59, 130, 246, 0.2);
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--surface-hover);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.12);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+      color: #fff;
+    }
+
+    .search-bar {
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .search-bar input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 16px 12px 40px;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+    }
+    .search-bar input:focus {
+      border-color: var(--primary);
+    }
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 13px;
+      color: var(--text-muted);
+    }
+
+    .stats-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .reels-table {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .reel-row {
+      display: flex;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      gap: 16px;
+      transition: border-color 0.2s;
+    }
+    .reel-row:hover {
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .reel-thumb-preview {
+      width: 64px;
+      height: 90px;
+      border-radius: var(--radius-sm);
+      background: #000;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .reel-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .reel-name {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .reel-id-tag {
+      display: inline-block;
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--primary);
+      background: rgba(59, 130, 246, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+
+    .reel-meta-info {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .reel-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Modal for Preview / Confirmation */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .modal-body {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1e293b;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 2000;
+      pointer-events: none;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Terminal Helper Drawer */
+    .cli-box {
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #38bdf8;
+      overflow-x: auto;
+      margin-top: 10px;
+      user-select: all;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="header-left">
+      <a href="index.html" class="back-link">← Open App</a>
+      <h1>Library Manager</h1>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn btn-secondary" onclick="loadCatalog()">🔄 Refresh</button>
+      <button class="btn btn-secondary" onclick="openSettingsModal()">⚙️ R2 Credentials</button>
+    </div>
+  </header>
+
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-input" placeholder="Search reels by title, tag, or ID..." oninput="filterReels()">
+  </div>
+
+  <div class="stats-banner">
+    <span id="stats-count">Loading reels...</span>
+    <span style="color: var(--primary);">Cloudflare R2 Synced</span>
+  </div>
+
+  <div class="reels-table" id="reels-container">
+    <!-- Injected via JavaScript -->
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-backdrop" id="delete-modal">
+  <div class="modal-box">
+    <h3 class="modal-title" style="color: var(--danger);">🗑️ Delete Reel Entirely?</h3>
+    <div class="modal-body" id="delete-modal-text">
+      Are you sure? This will permanently delete all GIFs, full video.mp4, and thumbnails from your Cloudflare R2 bucket.
+    </div>
+
+    <div style="font-size: 12px; margin-bottom: 14px; color: var(--text-muted);">
+      Or delete from terminal on Mac / Raspberry Pi:
+      <div class="cli-box" id="delete-cli-cmd">python3 scripts/delete_reel.py &lt;id&gt;</div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" id="confirm-delete-btn" onclick="executeDelete()">Delete from R2</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal for R2 Credentials (for direct browser deletion) -->
+<div class="modal-backdrop" id="settings-modal">
+  <div class="modal-box">
+    <h3 class="modal-title">⚙️ Cloudflare R2 Credentials</h3>
+    <div class="modal-body">
+      Credentials are stored securely only in your browser's local storage to authorize delete requests directly to Cloudflare R2.
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+        <input type="text" id="cfg-endpoint" placeholder="S3 Endpoint URL" style="width: 100%; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); color: #fff; border-radius: 6px;">
+        <input type="text" id="cfg-key" placeholder="Access Key ID" style="width: 100%; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); color: #fff; border-radius: 6px;">
+        <input type="password" id="cfg-secret" placeholder="Secret Access Key" style="width: 100%; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); color: #fff; border-radius: 6px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSettingsModal()">Close</button>
+      <button class="btn btn-secondary" style="background: var(--primary); color: #fff;" onclick="saveSettings()">Save Credentials</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <span id="toast-text">Message</span>
+</div>
+
+<script type="module">
+  const CDN_BASE_URL = 'https://pub-fd6036bfc4d84b359e94558bed250b7c.r2.dev';
+  const DEFAULT_ENDPOINT = 'https://97a82140773b3561df737fca1289618a.r2.cloudflarestorage.com';
+  const DEFAULT_KEY = '305011393627d3e6b541c6ade7394e5d';
+  const DEFAULT_SECRET = '35a69d56edaa256e1fd93b6501173ab9f4df775b4b44431552c20668722c4e17';
+  const BUCKET_NAME = 'sakrecubesdb-assets';
+
+  let masterCatalog = [];
+  let pendingDeleteReel = null;
+
+  function resolveMediaUrl(path) {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return `${CDN_BASE_URL}/${path.replace(/^\/+/, '')}`;
+  }
+
+  window.loadCatalog = async function() {
+    const statsEl = document.getElementById('stats-count');
+    statsEl.textContent = 'Fetching catalog from R2...';
+    try {
+      const res = await fetch(resolveMediaUrl('data/reels.json'), { cache: 'no-cache' });
+      if (res.ok) {
+        masterCatalog = await res.json();
+      } else {
+        masterCatalog = [];
+      }
+    } catch (err) {
+      console.warn('Failed to fetch from CDN, loading local:', err);
+      try {
+        const local = await fetch('data/reels.json');
+        masterCatalog = await local.json();
+      } catch (e) {
+        masterCatalog = [];
+      }
+    }
+
+    renderTable(masterCatalog);
+  };
+
+  function renderTable(reels) {
+    const container = document.getElementById('reels-container');
+    const statsEl = document.getElementById('stats-count');
+    container.innerHTML = '';
+
+    statsEl.textContent = `Total: ${reels.length} Reels registered`;
+
+    if (reels.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-muted); background: var(--card-bg); border-radius: var(--radius-md); border: 1px dashed var(--border);">
+          <div style="font-size: 40px; margin-bottom: 10px;">📭</div>
+          <h3 style="color: #fff; margin-bottom: 6px;">No reels in library</h3>
+          <p style="font-size: 13px;">Send an Instagram reel URL to your Telegram bot or run ingest_reel.py on your Pi to populate the library.</p>
+        </div>
+      `;
+      return;
+    }
+
+    reels.forEach(reel => {
+      const row = document.createElement('div');
+      row.className = 'reel-row';
+      row.id = `row-${reel.id}`;
+
+      const thumbUrl = resolveMediaUrl(reel.thumbnail);
+      const videoUrl = resolveMediaUrl(reel.video || `data/reels/${reel.id}/video.mp4`);
+      const dateStr = reel.created_at ? new Date(reel.created_at).toLocaleString() : 'N/A';
+
+      row.innerHTML = `
+        <img class="reel-thumb-preview" src="${thumbUrl}" alt="${reel.title}" onerror="this.style.opacity='0.3'">
+        <div class="reel-details">
+          <div class="reel-name">${reel.title}</div>
+          <div class="reel-id-tag">ID: ${reel.id}</div>
+          <div class="reel-meta-info">
+            <span>🎬 ${reel.total_shots || 0} Shots (24 FPS)</span>
+            <span>📅 ${dateStr}</span>
+            ${reel.subtitle ? `<span>📍 ${reel.subtitle}</span>` : ''}
+          </div>
+        </div>
+        <div class="reel-actions">
+          <a class="btn btn-secondary" href="${videoUrl}" target="_blank" title="Open full MP4 with audio">▶ Video</a>
+          <button class="btn btn-danger" onclick="promptDelete('${reel.id}', '${reel.title.replace(/'/g, "\\'")}')">🗑️ Delete</button>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+  }
+
+  window.filterReels = function() {
+    const q = document.getElementById('search-input').value.toLowerCase().trim();
+    if (!q) {
+      renderTable(masterCatalog);
+      return;
+    }
+    const filtered = masterCatalog.filter(r => 
+      (r.title && r.title.toLowerCase().includes(q)) ||
+      (r.id && r.id.toLowerCase().includes(q)) ||
+      (r.subtitle && r.subtitle.toLowerCase().includes(q))
+    );
+    renderTable(filtered);
+  };
+
+  window.promptDelete = function(id, title) {
+    pendingDeleteReel = { id, title };
+    document.getElementById('delete-modal-text').innerHTML = `
+      Are you sure you want to delete <strong>${title}</strong> (<code>${id}</code>)?<br><br>
+      This will permanently delete all <strong>GIF shots</strong>, the <strong>full video.mp4</strong>, and <strong>thumbnail.jpg</strong> from your Cloudflare R2 bucket.
+    `;
+    document.getElementById('delete-cli-cmd').textContent = `python3 scripts/delete_reel.py ${id}`;
+    document.getElementById('delete-modal').classList.add('active');
+  };
+
+  window.closeDeleteModal = function() {
+    document.getElementById('delete-modal').classList.remove('active');
+    pendingDeleteReel = null;
+  };
+
+  window.executeDelete = async function() {
+    if (!pendingDeleteReel) return;
+    const { id, title } = pendingDeleteReel;
+    const btn = document.getElementById('confirm-delete-btn');
+    btn.disabled = true;
+    btn.textContent = 'Deleting from R2...';
+
+    const endpoint = localStorage.getItem('r2_cfg_endpoint') || DEFAULT_ENDPOINT;
+    const accessKeyId = localStorage.getItem('r2_cfg_key') || DEFAULT_KEY;
+    const secretAccessKey = localStorage.getItem('r2_cfg_secret') || DEFAULT_SECRET;
+
+    try {
+      // Use AWS S3 Client via dynamic ESM import
+      const { S3Client, ListObjectsV2Command, DeleteObjectsCommand, PutObjectCommand } = await import('https://esm.sh/@aws-sdk/client-s3@3.540.0');
+
+      const s3 = new S3Client({
+        region: 'auto',
+        endpoint: endpoint,
+        credentials: {
+          accessKeyId: accessKeyId,
+          secretAccessKey: secretAccessKey
+        }
+      });
+
+      // 1. List objects with prefix data/reels/<id>/
+      const listCmd = new ListObjectsV2Command({
+        Bucket: BUCKET_NAME,
+        Prefix: `data/reels/${id}/`
+      });
+      const listRes = await s3.send(listCmd);
+      const objects = listRes.Contents || [];
+
+      if (objects.length > 0) {
+        // Delete objects
+        const delCmd = new DeleteObjectsCommand({
+          Bucket: BUCKET_NAME,
+          Delete: {
+            Objects: objects.map(o => ({ Key: o.Key }))
+          }
+        });
+        await s3.send(delCmd);
+      }
+
+      // 2. Update catalog data/reels.json on R2
+      const updatedCatalog = masterCatalog.filter(r => r.id !== id);
+      const putCatCmd = new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: 'data/reels.json',
+        Body: JSON.stringify(updatedCatalog, null, 2),
+        ContentType: 'application/json'
+      });
+      await s3.send(putCatCmd);
+
+      masterCatalog = updatedCatalog;
+      renderTable(masterCatalog);
+      closeDeleteModal();
+      showToast(`✅ Successfully deleted "${title}" from Cloudflare R2!`);
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Delete failed: ' + err.message + '\n\nYou can also delete via terminal: python3 scripts/delete_reel.py ' + id);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Delete from R2';
+    }
+  };
+
+  window.openSettingsModal = function() {
+    document.getElementById('cfg-endpoint').value = localStorage.getItem('r2_cfg_endpoint') || DEFAULT_ENDPOINT;
+    document.getElementById('cfg-key').value = localStorage.getItem('r2_cfg_key') || DEFAULT_KEY;
+    document.getElementById('cfg-secret').value = localStorage.getItem('r2_cfg_secret') || DEFAULT_SECRET;
+    document.getElementById('settings-modal').classList.add('active');
+  };
+
+  window.closeSettingsModal = function() {
+    document.getElementById('settings-modal').classList.remove('active');
+  };
+
+  window.saveSettings = function() {
+    localStorage.setItem('r2_cfg_endpoint', document.getElementById('cfg-endpoint').value.trim());
+    localStorage.setItem('r2_cfg_key', document.getElementById('cfg-key').value.trim());
+    localStorage.setItem('r2_cfg_secret', document.getElementById('cfg-secret').value.trim());
+    closeSettingsModal();
+    showToast('Saved R2 credentials in browser');
+  };
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toast-text').textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2800);
+  }
+
+  loadCatalog();
+</script>
+
+</body>
+</html>

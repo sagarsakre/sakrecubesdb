@@ -206,8 +206,8 @@ def main():
 
     print(f"✨ Found {len(intervals)} distinct scenes in {total_dur:.1f}s video.")
 
-    # 2. Extract cover thumbnail
-    print("⏳ Step 2/5: Extracting cover thumbnail.jpg...")
+    # 2. Extract cover thumbnail & prepare web video
+    print("⏳ Step 2/5: Extracting cover thumbnail.jpg & optimizing video.mp4...")
     thumb_path = output_dir / "thumbnail.jpg"
     thumb_time = min(1.0, total_dur / 2.0)
     subprocess.run([
@@ -218,6 +218,17 @@ def main():
         "-q:v", "2",
         str(thumb_path)
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+    # Save full video with faststart streaming flags
+    video_out = output_dir / "video.mp4"
+    subprocess.run([
+        "ffmpeg", "-y", "-i", video_path,
+        "-c", "copy", "-movflags", "+faststart",
+        str(video_out)
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if not video_out.exists():
+        import shutil
+        shutil.copyfile(video_path, str(video_out))
 
     # 3. Export 640p GIFs (24 FPS, 1-pass)
     print(f"⏳ Step 3/5: Generating 640p GIFs at {args.fps} FPS for {len(intervals)} shots...")
@@ -255,6 +266,7 @@ def main():
         "title": title,
         "subtitle": subtitle,
         "thumbnail": "thumbnail.jpg",
+        "video": "video.mp4",
         "total_shots": len(shots),
         "created_at": now_iso,
         "shots": shots
@@ -269,6 +281,7 @@ def main():
     if s3:
         files_to_upload = [
             (thumb_path, f"data/reels/{reel_id}/thumbnail.jpg"),
+            (video_out, f"data/reels/{reel_id}/video.mp4"),
             (reel_json_path, f"data/reels/{reel_id}/reel.json")
         ]
         for shot in shots:
@@ -301,6 +314,7 @@ def main():
             "title": title,
             "subtitle": subtitle,
             "thumbnail": f"data/reels/{reel_id}/thumbnail.jpg",
+            "video": f"data/reels/{reel_id}/video.mp4",
             "reel_json": f"data/reels/{reel_id}/reel.json",
             "total_shots": len(shots),
             "created_at": now_iso
@@ -324,7 +338,8 @@ def main():
 
     # Optional Cleanups
     if args.clean:
-        print("🧹 Cleaning local temporary GIFs...")
+        print("🧹 Cleaning local temporary files...")
+        video_out.unlink(missing_ok=True)
         for shot in shots:
             (output_dir / shot["clip"]).unlink(missing_ok=True)
         print("   Done.")
