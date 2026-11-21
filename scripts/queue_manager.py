@@ -171,7 +171,7 @@ def process_one_job():
             (started_iso, job_id)
         )
 
-    print(f"\n[Worker] 🎬 Starting Job #{job_id}: {shortcode} ({url})")
+    print(f"\n[Worker] 🎬 Starting Job #{job_id}: {shortcode} ({url})", flush=True)
     ingest_script = APP_DIR / "scripts" / "ingest_reel.py"
     cmd = [sys.executable, str(ingest_script), url, "--clean"]
 
@@ -219,7 +219,7 @@ def process_one_job():
                 f"⚡ Available on your Trip Board & Library Manager!"
             )
             send_telegram(msg, chat_id)
-            print(f"[Worker] ✅ Job #{job_id} completed successfully.")
+            print(f"[Worker] ✅ Job #{job_id} completed successfully.", flush=True)
         else:
             err_msg = proc.stdout[-500:] if proc.stdout else "Unknown error"
             with conn:
@@ -233,7 +233,7 @@ def process_one_job():
                 f"⚠️ Error: <code>{err_msg[:200]}</code>"
             )
             send_telegram(fail_msg, chat_id)
-            print(f"[Worker] ❌ Job #{job_id} failed with exit code {proc.returncode}.")
+            print(f"[Worker] ❌ Job #{job_id} failed with exit code {proc.returncode}.", flush=True)
 
     except Exception as exc:
         finished_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -243,15 +243,15 @@ def process_one_job():
                 (finished_iso, str(exc), job_id)
             )
         send_telegram(f"🔴 <b>Reel ingestion crashed on the Pi!</b>\n\n<code>{exc}</code>", chat_id)
-        print(f"[Worker] 💥 Job #{job_id} encountered exception: {exc}")
+        print(f"[Worker] 💥 Job #{job_id} encountered exception: {exc}", flush=True)
 
     return True
 
 def run_worker():
-    print("=" * 60)
-    print("🚀 Sakrecubes Reel Ingestion Queue Worker started.")
-    print(f"📁 Database: {DB_PATH}")
-    print("=" * 60)
+    print("=" * 60, flush=True)
+    print("🚀 Sakrecubes Reel Ingestion Queue Worker started.", flush=True)
+    print(f"📁 Database: {DB_PATH}", flush=True)
+    print("=" * 60, flush=True)
     while True:
         had_work = process_one_job()
         if not had_work:
