@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Queue Manager & Worker for Sakrecubes Reel Ingestion:
-Enqueues Instagram reel URLs and processes them sequentially in the background.
+Enqueues Instagram reel URLs with fast metadata discovery and processes them sequentially in the background.
 Sends status updates directly to Telegram.
 """
 
@@ -14,6 +14,8 @@ import argparse
 import subprocess
 import urllib.request
 import urllib.parse
+import html
+import re
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -57,14 +59,15 @@ def send_telegram(text: str, chat_id: str = None):
     token, default_chat_id = get_telegram_config()
     target_chat = chat_id or default_chat_id
     if not token or not target_chat:
-        print(f"[Telegram Notice - not sent, missing token]: {text}", file=sys.stderr)
+        print(f"[Telegram Notice - not sent, missing token]: {text}", file=sys.stderr, flush=True)
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = json.dumps({
         "chat_id": target_chat,
         "text": text,
-        "parse_mode": "HTML"
+        "parse_mode": "HTML",
+        "disable_web_page_preview": False
     }).encode("utf-8")
 
     req = urllib.request.Request(
@@ -76,7 +79,7 @@ def send_telegram(text: str, chat_id: str = None):
         with urllib.request.urlopen(req, timeout=10) as res:
             return res.status == 200
     except Exception as e:
-        print(f"Failed to send Telegram message: {e}", file=sys.stderr)
+        print(f"Failed to send Telegram message: {e}", file=sys.stderr, flush=True)
         return False
 
 def get_db():
@@ -95,32 +98,80 @@ def get_db():
                 started_at TEXT,
                 finished_at TEXT,
                 error TEXT,
-                result TEXT
+                result TEXT,
+                caption TEXT,
+                creator TEXT,
+                reel_label TEXT
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_queue_status ON queue(status)")
+        # Migrate table if columns missing
+        existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(queue)").fetchall()}
+        for col in ["caption", "creator", "reel_label"]:
+            if col not in existing_cols:
+                conn.execute(f"ALTER TABLE queue ADD COLUMN {col} TEXT")
     return conn
 
-def extract_shortcode(url: str) -> str:
-    import re
-    m = re.search(r"/(?:reel|reels|p)/([A-Za-z0-9_-]+)", url)
-    return m.group(1) if m else "reel"
+def fetch_reel_metadata(url: str):
+    clean_url = re.sub(r"\?.*$", "", url).rstrip("/") + "/"
+    m = re.search(r"/(?:reel|reels|p)/([A-Za-z0-9_-]+)", clean_url)
+    shortcode = m.group(1) if m else "reel"
+
+    caption = ""
+    creator = ""
+    try:
+        oembed_url = f"https://www.instagram.com/api/v1/oembed/?url={clean_url}"
+        req = urllib.request.Request(oembed_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            creator = data.get("author_name", "").strip()
+            raw_title = data.get("title", "").strip()
+            for line in raw_title.splitlines():
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    caption = line
+                    break
+    except Exception as e:
+        print(f"[queue_manager] oembed lookup notice for {shortcode}: {e}", file=sys.stderr, flush=True)
+
+    if caption and len(caption) > 70:
+        caption = caption[:67] + "..."
+
+    if caption and creator:
+        reel_label = f"{caption} | Reel by @{creator}"
+    elif creator:
+        reel_label = f"Reel by @{creator}"
+    elif caption:
+        reel_label = caption
+    else:
+        reel_label = f"Reel {shortcode}"
+
+    return {
+        "shortcode": shortcode,
+        "url": clean_url,
+        "caption": caption,
+        "creator": creator,
+        "reel_label": reel_label,
+    }
 
 def enqueue(url: str, chat_id: str = None):
     conn = get_db()
-    shortcode = extract_shortcode(url)
+    meta = fetch_reel_metadata(url)
+    shortcode = meta["shortcode"]
+    clean_url = meta["url"]
+    caption = meta["caption"]
+    creator = meta["creator"]
+    reel_label = meta["reel_label"]
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     with conn:
-        # Check if already active or pending
         cur = conn.cursor()
         cur.execute(
-            "SELECT id, status FROM queue WHERE shortcode = ? AND status IN ('pending', 'processing')",
+            "SELECT id, status, reel_label FROM queue WHERE shortcode = ? AND status IN ('pending', 'processing')",
             (shortcode,)
         )
         existing = cur.fetchone()
         if existing:
-            # Count position
             cur.execute(
                 "SELECT COUNT(*) FROM queue WHERE status IN ('pending', 'processing') AND id <= ?",
                 (existing[0],)
@@ -130,16 +181,20 @@ def enqueue(url: str, chat_id: str = None):
                 "status": "already_queued",
                 "job_id": existing[0],
                 "shortcode": shortcode,
+                "url": clean_url,
+                "caption": caption,
+                "creator": creator,
+                "reel_label": existing[2] or reel_label,
                 "position": pos
             }
 
         cur.execute(
-            "INSERT INTO queue (url, shortcode, chat_id, status, created_at) VALUES (?, ?, ?, 'pending', ?)",
-            (url, shortcode, chat_id, now_iso)
+            """INSERT INTO queue (url, shortcode, chat_id, status, created_at, caption, creator, reel_label)
+               VALUES (?, ?, ?, 'pending', ?, ?, ?, ?)""",
+            (clean_url, shortcode, chat_id, now_iso, caption, creator, reel_label)
         )
         job_id = cur.lastrowid
 
-        # Calculate position (number of active jobs up to this one)
         cur.execute(
             "SELECT COUNT(*) FROM queue WHERE status IN ('pending', 'processing') AND id <= ?",
             (job_id,)
@@ -150,6 +205,10 @@ def enqueue(url: str, chat_id: str = None):
         "status": "queued",
         "job_id": job_id,
         "shortcode": shortcode,
+        "url": clean_url,
+        "caption": caption,
+        "creator": creator,
+        "reel_label": reel_label,
         "position": position
     }
 
@@ -158,34 +217,33 @@ def process_one_job():
     with conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT id, url, shortcode, chat_id FROM queue WHERE status = 'pending' ORDER BY id ASC LIMIT 1"
+            "SELECT id, url, shortcode, chat_id, caption, creator, reel_label FROM queue WHERE status = 'pending' ORDER BY id ASC LIMIT 1"
         )
         job = cur.fetchone()
         if not job:
             return False
 
-        job_id, url, shortcode, chat_id = job
+        job_id, url, shortcode, chat_id, caption, creator, reel_label = job
         started_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         cur.execute(
             "UPDATE queue SET status = 'processing', started_at = ? WHERE id = ?",
             (started_iso, job_id)
         )
 
-    print(f"\n[Worker] 🎬 Starting Job #{job_id}: {shortcode} ({url})", flush=True)
+    clean_url = re.sub(r"\?.*$", "", url).rstrip("/") + "/"
+    print(f"\n[Worker] 🎬 Starting Job #{job_id}: {shortcode} ({clean_url})", flush=True)
     ingest_script = APP_DIR / "scripts" / "ingest_reel.py"
-    cmd = [sys.executable, str(ingest_script), url, "--clean"]
+    cmd = [sys.executable, str(ingest_script), clean_url, "--clean"]
 
     try:
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         finished_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         if proc.returncode == 0:
-            # Extract success JSON output if available
             result_json = "{}"
             for line in proc.stdout.splitlines():
                 if "SUCCESS:" in line or '"status": "success"' in line:
                     try:
-                        # find json object in output
                         start = proc.stdout.find('{\n  "status": "success"')
                         if start != -1:
                             end = proc.stdout.rfind('}') + 1
@@ -210,14 +268,27 @@ def process_one_job():
                     (finished_iso, result_json, job_id)
                 )
 
-            # Send Telegram success notification
-            msg = (
-                f"🟢 <b>Reel ingestion finished on the Pi!</b>\n\n"
-                f"🎬 <b>Title:</b> {title}\n"
-                f"🆔 <code>{shortcode}</code>\n"
-                f"{f'📦 <b>Size:</b> {size_str} ({shots} shots)' if size_str else ''}\n\n"
-                f"⚡ Available on your Trip Board & Library Manager!"
-            )
+            final_label = reel_label
+            if not final_label or final_label.startswith("Reel "):
+                if creator:
+                    final_label = f"{title[:70]} | Reel by @{creator}"
+                else:
+                    final_label = title[:70]
+            escaped_label = html.escape(final_label)
+
+            # Send Telegram success notification matching the requested format
+            msg_lines = [
+                "🟢 Reel ingestion finished on the Pi.",
+                f'Reel: <a href="{clean_url}">{escaped_label}</a>',
+                f"Link: {clean_url}"
+            ]
+            if size_str and shots:
+                msg_lines.append(f"📦 Size: {size_str} ({shots} shots)")
+            elif size_str:
+                msg_lines.append(f"📦 Size: {size_str}")
+            msg_lines.append("\n⚡ Available on your Trip Board & Library Manager!")
+            msg = "\n".join(msg_lines)
+
             send_telegram(msg, chat_id)
             print(f"[Worker] ✅ Job #{job_id} completed successfully.", flush=True)
         else:
@@ -227,10 +298,14 @@ def process_one_job():
                     "UPDATE queue SET status = 'failed', finished_at = ?, error = ? WHERE id = ?",
                     (finished_iso, err_msg, job_id)
                 )
+            final_label = reel_label or f"Reel {shortcode}"
+            escaped_label = html.escape(final_label)
+            escaped_err = html.escape(err_msg[:200])
             fail_msg = (
-                f"🔴 <b>Reel ingestion failed on the Pi!</b>\n\n"
-                f"🆔 Reel: <code>{shortcode}</code>\n"
-                f"⚠️ Error: <code>{err_msg[:200]}</code>"
+                f"🔴 Reel ingestion failed on the Pi.\n"
+                f'Reel: <a href="{clean_url}">{escaped_label}</a>\n'
+                f"Link: {clean_url}\n"
+                f"⚠️ Error: <code>{escaped_err}</code>"
             )
             send_telegram(fail_msg, chat_id)
             print(f"[Worker] ❌ Job #{job_id} failed with exit code {proc.returncode}.", flush=True)
@@ -242,7 +317,16 @@ def process_one_job():
                 "UPDATE queue SET status = 'failed', finished_at = ?, error = ? WHERE id = ?",
                 (finished_iso, str(exc), job_id)
             )
-        send_telegram(f"🔴 <b>Reel ingestion crashed on the Pi!</b>\n\n<code>{exc}</code>", chat_id)
+        final_label = reel_label or f"Reel {shortcode}"
+        escaped_label = html.escape(final_label)
+        escaped_exc = html.escape(str(exc)[:200])
+        fail_msg = (
+            f"🔴 Reel ingestion failed on the Pi.\n"
+            f'Reel: <a href="{clean_url}">{escaped_label}</a>\n'
+            f"Link: {clean_url}\n"
+            f"⚠️ Error: <code>{escaped_exc}</code>"
+        )
+        send_telegram(fail_msg, chat_id)
         print(f"[Worker] 💥 Job #{job_id} encountered exception: {exc}", flush=True)
 
     return True
@@ -260,11 +344,12 @@ def run_worker():
 def list_status():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, shortcode, status, created_at, started_at, finished_at FROM queue ORDER BY id DESC LIMIT 15")
+    cur.execute("SELECT id, shortcode, status, reel_label, created_at, started_at, finished_at FROM queue ORDER BY id DESC LIMIT 15")
     rows = cur.fetchall()
     print(f"📊 Queue Status ({len(rows)} recent jobs):")
     for r in rows:
-        print(f"  #{r[0]:03d} [{r[2].upper():<10}] {r[1]} (Created: {r[3]})")
+        label = r[3] or r[1]
+        print(f"  #{r[0]:03d} [{r[2].upper():<10}] {label[:50]} (Created: {r[4]})")
 
 def main():
     parser = argparse.ArgumentParser(description="Sakrecubes Reel Queue Manager")
