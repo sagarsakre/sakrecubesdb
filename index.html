@@ -581,12 +581,14 @@
       position: relative;
     }
 
-    .shot-gif-box img {
+    .shot-gif-box img,
+    .shot-gif-box video {
       width: 100%;
       max-width: 640px;
       height: auto;
       display: block;
       margin: 0 auto;
+      object-fit: contain;
     }
 
     /* Master Library Modal Sheet */
@@ -1600,8 +1602,15 @@
         const shotBlob = await cacheFile(shotUrl, basePath + shot.clip);
         if (shotBlob) {
           const blobUrl = URL.createObjectURL(shotBlob);
-          const img = document.getElementById(`img-shot-${shot.id}`);
-          if (img) img.src = blobUrl;
+          const el = document.getElementById(`media-shot-${shot.id}`);
+          if (el) {
+            if (el.tagName === 'VIDEO') {
+              el.src = blobUrl;
+              el.play().catch(() => {});
+            } else {
+              el.src = blobUrl;
+            }
+          }
         }
 
         completedMedia++;
@@ -1641,6 +1650,14 @@
         card.style.order = isDone ? '1' : '0';
 
         const fullClipUrl = resolveMediaUrl(basePath + shot.clip);
+        const isMp4 = shot.clip && shot.clip.toLowerCase().endsWith('.mp4');
+
+        let mediaHtml = '';
+        if (isMp4) {
+          mediaHtml = `<video id="media-shot-${shot.id}" class="shot-loop-video" src="${fullClipUrl}" playsinline muted loop autoplay preload="auto"></video>`;
+        } else {
+          mediaHtml = `<img id="media-shot-${shot.id}" src="${fullClipUrl}" alt="${shot.title}" loading="lazy">`;
+        }
 
         card.innerHTML = `
           <div class="shot-header" onclick="toggleShot(${shot.id})">
@@ -1653,7 +1670,7 @@
             </div>
           </div>
           <div class="shot-gif-box">
-            <img id="img-shot-${shot.id}" src="${fullClipUrl}" alt="${shot.title}" loading="lazy">
+            ${mediaHtml}
           </div>
         `;
         container.appendChild(card);
@@ -1662,11 +1679,51 @@
           if (blob) {
             const blobUrl = URL.createObjectURL(blob);
             objectUrlMap.set(fullClipUrl, blobUrl);
-            const img = document.getElementById(`img-shot-${shot.id}`);
-            if (img) img.src = blobUrl;
+            const el = document.getElementById(`media-shot-${shot.id}`);
+            if (el) {
+              if (el.tagName === 'VIDEO') {
+                el.src = blobUrl;
+                el.play().catch(() => {});
+              } else {
+                el.src = blobUrl;
+              }
+            }
           }
         });
       }
+
+      // Initialize viewport playback observer
+      setupVideoObserver();
+    }
+
+    let shotVideoObserver = null;
+    function setupVideoObserver() {
+      if (shotVideoObserver) {
+        shotVideoObserver.disconnect();
+      }
+
+      // Generous 300px margin pre-plays video before it enters viewport
+      shotVideoObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          const video = entry.target;
+          if (entry.isIntersecting) {
+            if (video.paused) {
+              video.play().catch(() => {});
+            }
+          } else {
+            if (!video.paused) {
+              video.pause();
+            }
+          }
+        }
+      }, {
+        root: null,
+        rootMargin: '300px 0px 300px 0px',
+        threshold: 0.05
+      });
+
+      const videos = document.querySelectorAll('.shot-loop-video');
+      videos.forEach(v => shotVideoObserver.observe(v));
     }
 
     function toggleShot(shotId) {

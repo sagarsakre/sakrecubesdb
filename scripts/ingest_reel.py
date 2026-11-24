@@ -100,9 +100,9 @@ def main():
     parser.add_argument("--title", help="Human-readable title. Defaults to post title or filename.")
     parser.add_argument("--subtitle", default="", help="Optional subtitle or location.")
     parser.add_argument("--threshold", type=float, default=0.28, help="Scene detection sensitivity (default 0.28)")
-    parser.add_argument("--fps", type=int, default=24, help="Output GIF framerate (default 24 fps)")
-    parser.add_argument("--resolution", type=int, default=480, help="Output GIF max dimension (e.g. 640, 480, 360, default 480)")
-    parser.add_argument("--clean", action="store_true", help="Delete local output GIFs after uploading to R2")
+    parser.add_argument("--fps", type=int, default=24, help="Output framerate (default 24 fps)")
+    parser.add_argument("--resolution", type=int, default=640, help="Output clip max dimension (e.g. 640, 480, default 640)")
+    parser.add_argument("--clean", action="store_true", help="Delete local output clips after uploading to R2")
     parser.add_argument("--delete-source", action="store_true", help="Delete the source video after processing")
     args = parser.parse_args()
 
@@ -268,35 +268,43 @@ def main():
         import shutil
         shutil.copyfile(video_path, str(video_out))
 
-    # 3. Export GIFs (24 FPS, 1-pass)
+    # 3. Export looping MP4 clips (CRF 23, +faststart, -an)
     target_resolution = args.resolution
-    print(f"⏳ Step 3/5: Generating {target_resolution}p GIFs at {args.fps} FPS for {len(intervals)} shots...")
-    vf_scale = f"fps={args.fps},scale='if(gt(iw,ih), -2, min({target_resolution},iw))':'if(gt(iw,ih), min({target_resolution},ih), -2)'"
+    print(f"⏳ Step 3/5: Generating {target_resolution}p MP4 clips (H.264, +faststart) for {len(intervals)} shots...")
+    vf_scale = f"scale='if(gt(iw,ih), -2, min({target_resolution},iw))':'if(gt(iw,ih), min({target_resolution},ih), -2)'"
     shots = []
 
     for idx, (start, dur) in enumerate(intervals, 1):
-        gif_filename = f"split_{idx:02d}.gif"
-        gif_out = output_dir / gif_filename
+        clip_filename = f"split_{idx:02d}.mp4"
+        clip_out = output_dir / clip_filename
 
-        cmd_gif = [
+        cmd_clip = [
             "ffmpeg", "-y",
             "-ss", f"{start:.6f}",
             "-t", f"{dur:.6f}",
-            "-i", video_path,
+            "-i", str(video_path),
             "-vf", vf_scale,
-            str(gif_out)
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-profile:v", "high",
+            "-level", "4.1",
+            "-crf", "23",
+            "-preset", "medium",
+            "-movflags", "+faststart",
+            "-an",
+            str(clip_out)
         ]
-        subprocess.run(cmd_gif, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-        size_mb = gif_out.stat().st_size / (1024 * 1024)
+        subprocess.run(cmd_clip, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        size_mb = clip_out.stat().st_size / (1024 * 1024)
 
         shot_title = f"Shot {idx:02d}"
         shots.append({
             "id": idx,
             "title": shot_title,
-            "clip": gif_filename,
+            "clip": clip_filename,
             "duration": f"{dur:.2f}s"
         })
-        print(f"   [{idx:02d}/{len(intervals)}] {dur:.2f}s -> {gif_filename} ({size_mb:.2f} MB)")
+        print(f"   [{idx:02d}/{len(intervals)}] {dur:.2f}s -> {clip_filename} ({size_mb:.2f} MB)")
 
     # 4. Generate reel.json & compute total package size
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -331,8 +339,8 @@ def main():
             (reel_json_path, f"data/reels/{reel_id}/reel.json")
         ]
         for shot in shots:
-            gif_p = output_dir / shot["clip"]
-            files_to_upload.append((gif_p, f"data/reels/{reel_id}/{shot['clip']}"))
+            clip_p = output_dir / shot["clip"]
+            files_to_upload.append((clip_p, f"data/reels/{reel_id}/{shot['clip']}"))
 
         total_files = len(files_to_upload)
         for idx, (lp, rk) in enumerate(files_to_upload, 1):
