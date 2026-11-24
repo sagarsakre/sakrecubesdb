@@ -101,6 +101,7 @@ def main():
     parser.add_argument("--subtitle", default="", help="Optional subtitle or location.")
     parser.add_argument("--threshold", type=float, default=0.28, help="Scene detection sensitivity (default 0.28)")
     parser.add_argument("--fps", type=int, default=24, help="Output GIF framerate (default 24 fps)")
+    parser.add_argument("--resolution", type=int, default=640, help="Output GIF max dimension (e.g. 640, 480, 360)")
     parser.add_argument("--clean", action="store_true", help="Delete local output GIFs after uploading to R2")
     parser.add_argument("--delete-source", action="store_true", help="Delete the source video after processing")
     args = parser.parse_args()
@@ -267,9 +268,10 @@ def main():
         import shutil
         shutil.copyfile(video_path, str(video_out))
 
-    # 3. Export 640p GIFs (24 FPS, 1-pass)
-    print(f"⏳ Step 3/5: Generating 640p GIFs at {args.fps} FPS for {len(intervals)} shots...")
-    vf_scale = f"fps={args.fps},scale='if(gt(iw,ih), -2, min(640,iw))':'if(gt(iw,ih), min(640,ih), -2)'"
+    # 3. Export GIFs (24 FPS, 1-pass)
+    target_resolution = args.resolution
+    print(f"⏳ Step 3/5: Generating {target_resolution}p GIFs at {args.fps} FPS for {len(intervals)} shots...")
+    vf_scale = f"fps={args.fps},scale='if(gt(iw,ih), -2, min({target_resolution},iw))':'if(gt(iw,ih), min({target_resolution},ih), -2)'"
     shots = []
 
     for idx, (start, dur) in enumerate(intervals, 1):
@@ -306,6 +308,7 @@ def main():
         "id": reel_id,
         "title": title,
         "subtitle": subtitle,
+        "resolution": f"{target_resolution}p",
         "thumbnail": "thumbnail.jpg",
         "video": "video.mp4",
         "total_shots": len(shots),
@@ -356,6 +359,7 @@ def main():
             "id": reel_id,
             "title": title,
             "subtitle": subtitle,
+            "resolution": f"{target_resolution}p",
             "thumbnail": f"data/reels/{reel_id}/thumbnail.jpg",
             "video": f"data/reels/{reel_id}/video.mp4",
             "reel_json": f"data/reels/{reel_id}/reel.json",
