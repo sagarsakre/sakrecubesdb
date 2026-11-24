@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ReelShot Ingestion Pipeline for Raspberry Pi / Local Worker:
-Takes any input video (mp4/mov), detects scenes, generates 640p GIFs,
+Takes any input video (mp4/mov), detects scenes, generates 480p GIFs,
 uploads all assets to Cloudflare R2 CDN, and updates the Master Catalog on R2.
 
 Usage:
@@ -101,7 +101,7 @@ def main():
     parser.add_argument("--subtitle", default="", help="Optional subtitle or location.")
     parser.add_argument("--threshold", type=float, default=0.28, help="Scene detection sensitivity (default 0.28)")
     parser.add_argument("--fps", type=int, default=24, help="Output GIF framerate (default 24 fps)")
-    parser.add_argument("--resolution", type=int, default=640, help="Output GIF max dimension (e.g. 640, 480, 360)")
+    parser.add_argument("--resolution", type=int, default=480, help="Output GIF max dimension (e.g. 640, 480, 360, default 480)")
     parser.add_argument("--clean", action="store_true", help="Delete local output GIFs after uploading to R2")
     parser.add_argument("--delete-source", action="store_true", help="Delete the source video after processing")
     args = parser.parse_args()

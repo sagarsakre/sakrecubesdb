@@ -1,42 +1,16 @@
 [
   {
-    "id": "heritage-retreat-360p",
-    "title": "A heritage weekend retreat (360p)",
-    "subtitle": "@chillystudio",
-    "resolution": "360p",
-    "thumbnail": "data/reels/heritage-retreat-360p/thumbnail.jpg",
-    "video": "data/reels/heritage-retreat-360p/video.mp4",
-    "reel_json": "data/reels/heritage-retreat-360p/reel.json",
-    "total_shots": 93,
-    "total_bytes": 149329679,
-    "size_mb": 142.4,
-    "created_at": "2026-11-24T18:32:49Z"
-  },
-  {
-    "id": "heritage-retreat-480p",
-    "title": "A heritage weekend retreat (480p)",
+    "id": "a-heritage-weekend-retre-dfhqtq2stmo",
+    "title": "A heritage weekend retreat just 35kms from Bengaluru!",
     "subtitle": "@chillystudio",
     "resolution": "480p",
-    "thumbnail": "data/reels/heritage-retreat-480p/thumbnail.jpg",
-    "video": "data/reels/heritage-retreat-480p/video.mp4",
-    "reel_json": "data/reels/heritage-retreat-480p/reel.json",
+    "thumbnail": "data/reels/a-heritage-weekend-retre-dfhqtq2stmo/thumbnail.jpg",
+    "video": "data/reels/a-heritage-weekend-retre-dfhqtq2stmo/video.mp4",
+    "reel_json": "data/reels/a-heritage-weekend-retre-dfhqtq2stmo/reel.json",
     "total_shots": 93,
     "total_bytes": 241979991,
     "size_mb": 230.8,
-    "created_at": "2026-11-24T18:31:08Z"
-  },
-  {
-    "id": "heritage-retreat-640p",
-    "title": "A heritage weekend retreat (640p)",
-    "subtitle": "@chillystudio",
-    "resolution": "640p",
-    "thumbnail": "data/reels/heritage-retreat-640p/thumbnail.jpg",
-    "video": "data/reels/heritage-retreat-640p/video.mp4",
-    "reel_json": "data/reels/heritage-retreat-640p/reel.json",
-    "total_shots": 93,
-    "total_bytes": 401960200,
-    "size_mb": 383.3,
-    "created_at": "2026-11-24T18:29:01Z"
+    "created_at": "2026-11-24T18:46:11Z"
   },
   {
     "id": "looking-for-a-new-hangou-c-ugrwksfm4",
