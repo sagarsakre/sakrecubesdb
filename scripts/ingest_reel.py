@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ReelShot Ingestion Pipeline for Raspberry Pi / Local Worker:
-Takes any input video (mp4/mov), detects scenes, generates 480p GIFs,
+Takes any input video (mp4/mov), detects scenes, generates 640p MP4 looping clips,
 uploads all assets to Cloudflare R2 CDN, and updates the Master Catalog on R2.
 
 Usage:
@@ -76,9 +76,7 @@ def get_s3_client():
 
 def get_content_type(file_path: Path) -> str:
     ext = file_path.suffix.lower()
-    if ext == ".gif":
-        return "image/gif"
-    elif ext in [".jpg", ".jpeg"]:
+    if ext in [".jpg", ".jpeg"]:
         return "image/jpeg"
     elif ext == ".png":
         return "image/png"

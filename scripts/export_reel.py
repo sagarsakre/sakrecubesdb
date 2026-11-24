@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ReelShot CLI Automator:
-Takes any input video, automatically detects scenes, exports 640p GIFs,
+Takes any input video, automatically detects scenes, exports 640p MP4 looping clips,
 generates a cover thumbnail and editable reel.json, and registers it in the Master Catalog.
 
 Usage:

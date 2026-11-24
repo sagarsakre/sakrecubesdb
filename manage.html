@@ -831,16 +831,11 @@
       card.onclick = () => toggleSceneSelection(shot.id);
 
       const clipUrl = resolveMediaUrl(basePath + shot.clip);
-      const isMp4 = shot.clip && shot.clip.toLowerCase().endsWith('.mp4');
-
-      const mediaHtml = isMp4 
-        ? `<video src="${clipUrl}" muted loop playsinline preload="metadata" onmouseenter="this.play().catch(()=>{})" onmouseleave="this.pause()"></video>`
-        : `<img src="${clipUrl}" alt="${shot.title}" loading="lazy">`;
 
       card.innerHTML = `
         <div class="scene-chk-overlay">✓</div>
         <div class="scene-media-box">
-          ${mediaHtml}
+          <video src="${clipUrl}" muted loop playsinline preload="metadata" onmouseenter="this.play().catch(()=>{})" onmouseleave="this.pause()"></video>
         </div>
         <div class="scene-card-footer">
           <div class="scene-card-title">${shot.title}</div>

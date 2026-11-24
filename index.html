@@ -571,6 +571,7 @@
       margin-top: 2px;
     }
 
+    .shot-media-box,
     .shot-gif-box {
       width: 100%;
       background: #000;
@@ -581,7 +582,7 @@
       position: relative;
     }
 
-    .shot-gif-box img,
+    .shot-media-box video,
     .shot-gif-box video {
       width: 100%;
       max-width: 640px;
@@ -1553,7 +1554,7 @@
       const basePath = currentReel.reel_json ? currentReel.reel_json.substring(0, currentReel.reel_json.lastIndexOf('/') + 1) : 'data/reels/' + currentReel.id + '/';
       const videoFile = currentReel.video || 'video.mp4';
 
-      // 1 Video + N GIF shots
+      // 1 Video + N MP4 shots
       const totalMedia = currentReel.shots.length + 1;
       let completedMedia = 0;
 
@@ -1602,14 +1603,10 @@
         const shotBlob = await cacheFile(shotUrl, basePath + shot.clip);
         if (shotBlob) {
           const blobUrl = URL.createObjectURL(shotBlob);
-          const el = document.getElementById(`media-shot-${shot.id}`);
-          if (el) {
-            if (el.tagName === 'VIDEO') {
-              el.src = blobUrl;
-              el.play().catch(() => {});
-            } else {
-              el.src = blobUrl;
-            }
+          const video = document.getElementById(`media-shot-${shot.id}`);
+          if (video) {
+            video.src = blobUrl;
+            video.play().catch(() => {});
           }
         }
 
@@ -1650,14 +1647,6 @@
         card.style.order = isDone ? '1' : '0';
 
         const fullClipUrl = resolveMediaUrl(basePath + shot.clip);
-        const isMp4 = shot.clip && shot.clip.toLowerCase().endsWith('.mp4');
-
-        let mediaHtml = '';
-        if (isMp4) {
-          mediaHtml = `<video id="media-shot-${shot.id}" class="shot-loop-video" src="${fullClipUrl}" playsinline muted loop autoplay preload="auto"></video>`;
-        } else {
-          mediaHtml = `<img id="media-shot-${shot.id}" src="${fullClipUrl}" alt="${shot.title}" loading="lazy">`;
-        }
 
         card.innerHTML = `
           <div class="shot-header" onclick="toggleShot(${shot.id})">
@@ -1669,8 +1658,8 @@
               <div class="shot-duration-pill">Duration: ${shot.duration}</div>
             </div>
           </div>
-          <div class="shot-gif-box">
-            ${mediaHtml}
+          <div class="shot-media-box">
+            <video id="media-shot-${shot.id}" class="shot-loop-video" src="${fullClipUrl}" playsinline muted loop autoplay preload="auto"></video>
           </div>
         `;
         container.appendChild(card);
@@ -1679,14 +1668,10 @@
           if (blob) {
             const blobUrl = URL.createObjectURL(blob);
             objectUrlMap.set(fullClipUrl, blobUrl);
-            const el = document.getElementById(`media-shot-${shot.id}`);
-            if (el) {
-              if (el.tagName === 'VIDEO') {
-                el.src = blobUrl;
-                el.play().catch(() => {});
-              } else {
-                el.src = blobUrl;
-              }
+            const video = document.getElementById(`media-shot-${shot.id}`);
+            if (video) {
+              video.src = blobUrl;
+              video.play().catch(() => {});
             }
           }
         });
@@ -1787,7 +1772,7 @@
     async function removeCurrentReelFromBoard() {
       if (!currentReel) return;
       const title = currentReel.title;
-      if (!confirm(`Remove "${title}" from your Trip Board? (Its downloaded GIFs will be cleared to save phone storage, but the reel stays permanently safe in your Master Library)`)) return;
+      if (!confirm(`Remove "${title}" from your Trip Board? (Its downloaded offline media will be cleared to save phone storage, but the reel stays permanently safe in your Master Library)`)) return;
 
       const reelId = currentReel.id;
 

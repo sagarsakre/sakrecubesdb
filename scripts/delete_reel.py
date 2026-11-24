@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
 ReelShot Deleter CLI:
-Deletes a reel entirely from Cloudflare R2 (all GIFs, video.mp4, thumbnails, reel.json)
+Deletes a reel or specific scenes from Cloudflare R2 (MP4 clips, video.mp4, thumbnails, reel.json)
 and removes its entry from the Master Catalog on R2 and locally.
 
 Usage:
   python3 delete_reel.py <reel_id>
+  python3 delete_reel.py <reel_id> --shots 1,3,5
   python3 delete_reel.py --list
   python3 delete_reel.py --all
 """

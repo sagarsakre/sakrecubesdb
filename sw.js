@@ -1,5 +1,5 @@
-const CACHE_NAME = 'reelshot-shell-v3';
-const MEDIA_CACHE = 'reelshot-media-v3';
+const CACHE_NAME = 'reelshot-shell-v4';
+const MEDIA_CACHE = 'reelshot-media-v4';
 
 const SHELL_ASSETS = [
   './',
@@ -52,13 +52,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Cache-first for heavy media (GIFs, JPGs, MP4s, individual reel.json)
+  // 2. Cache-first for heavy media (MP4s, JPGs, PNGs, individual reel.json)
   if (
-    url.pathname.endsWith('.gif') ||
+    url.pathname.endsWith('.mp4') ||
     url.pathname.endsWith('.jpg') ||
     url.pathname.endsWith('.jpeg') ||
     url.pathname.endsWith('.png') ||
-    url.pathname.endsWith('.mp4') ||
     url.pathname.endsWith('.json')
   ) {
     event.respondWith(

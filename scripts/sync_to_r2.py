@@ -44,9 +44,7 @@ s3_client = boto3.client(
 
 def get_content_type(file_path: Path) -> str:
     ext = file_path.suffix.lower()
-    if ext == ".gif":
-        return "image/gif"
-    elif ext in [".jpg", ".jpeg"]:
+    if ext in [".jpg", ".jpeg"]:
         return "image/jpeg"
     elif ext == ".png":
         return "image/png"
