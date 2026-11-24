@@ -17,6 +17,7 @@ import argparse
 import shutil
 from pathlib import Path
 import boto3
+from botocore.config import Config
 
 APP_DIR = Path(__file__).resolve().parent.parent
 
@@ -44,6 +45,7 @@ s3 = boto3.client(
     endpoint_url=R2_ENDPOINT,
     aws_access_key_id=R2_ACCESS_KEY_ID,
     aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+    config=Config(signature_version="s3v4", max_pool_connections=10),
     region_name="auto"
 )
 
@@ -90,9 +92,29 @@ def delete_prefix(prefix: str):
         s3.delete_objects(Bucket=R2_BUCKET, Delete={"Objects": batch})
     return len(objects)
 
+def parse_shot_ids(shots_str: str) -> set:
+    ids = set()
+    for part in shots_str.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            try:
+                start, end = part.split("-", 1)
+                ids.update(range(int(start), int(end) + 1))
+            except ValueError:
+                pass
+        else:
+            try:
+                ids.add(int(part))
+            except ValueError:
+                pass
+    return ids
+
 def main():
-    parser = argparse.ArgumentParser(description="Delete a reel from Cloudflare R2 and Master Catalog")
+    parser = argparse.ArgumentParser(description="Delete a reel or specific scenes from Cloudflare R2 and Master Catalog")
     parser.add_argument("reel_id", nargs="?", help="Reel ID to delete")
+    parser.add_argument("--shots", help="Comma-separated shot IDs to delete (e.g. '1,3,5' or '2-4')")
     parser.add_argument("--list", action="store_true", help="List all reels in catalog")
     parser.add_argument("--all", action="store_true", help="Wipe all reels from R2")
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -131,8 +153,98 @@ def main():
         print(f"⚠️ Warning: '{target_id}' not found in catalog, but checking R2 storage prefix...")
 
     title = match.get("title", target_id) if match else target_id
+
+    # Handle Partial Scene Deletion
+    if args.shots:
+        target_shot_ids = parse_shot_ids(args.shots)
+        if not target_shot_ids:
+            print("Error: No valid shot IDs provided in --shots.")
+            sys.exit(1)
+
+        # 1. Fetch reel.json
+        reel_json_key = f"data/reels/{target_id}/reel.json"
+        reel_data = None
+        try:
+            res = s3.get_object(Bucket=R2_BUCKET, Key=reel_json_key)
+            reel_data = json.loads(res["Body"].read().decode())
+        except Exception:
+            local_json = APP_DIR / "data" / "reels" / target_id / "reel.json"
+            if local_json.exists():
+                with open(local_json) as f:
+                    reel_data = json.load(f)
+
+        if not reel_data or "shots" not in reel_data:
+            print(f"Error: Could not retrieve reel.json for '{target_id}'.")
+            sys.exit(1)
+
+        shots_to_delete = [s for s in reel_data["shots"] if s.get("id") in target_shot_ids]
+        if not shots_to_delete:
+            print(f"⚠️ No matching shots found for IDs {sorted(target_shot_ids)} in '{target_id}'.")
+            return
+
+        print(f"✂️ Found {len(shots_to_delete)} scenes to delete:")
+        for s in shots_to_delete:
+            print(f"   • Shot {s.get('id')}: {s.get('clip')} ({s.get('duration')})")
+
+        if not args.yes:
+            conf = input(f"Permanently delete these {len(shots_to_delete)} scenes from Cloudflare R2? [y/N]: ")
+            if conf.strip().lower() not in ["y", "yes"]:
+                print("Aborted.")
+                return
+
+        # 2. Delete each clip from R2 and local
+        local_dir = APP_DIR / "data" / "reels" / target_id
+        for s in shots_to_delete:
+            clip_key = f"data/reels/{target_id}/{s.get('clip')}"
+            try:
+                s3.delete_object(Bucket=R2_BUCKET, Key=clip_key)
+                print(f"   ☁️ Deleted from R2: {clip_key}")
+            except Exception as e:
+                print(f"   ⚠️ Failed to delete {clip_key}: {e}")
+
+            if local_dir.exists():
+                local_file = local_dir / s.get("clip")
+                local_file.unlink(missing_ok=True)
+
+        # 3. Update reel.json
+        remaining_shots = [s for s in reel_data["shots"] if s.get("id") not in target_shot_ids]
+        reel_data["shots"] = remaining_shots
+        reel_data["total_shots"] = len(remaining_shots)
+
+        # Update package size
+        if "size_mb" in reel_data and len(reel_data["shots"]) > 0:
+            removed_ratio = len(shots_to_delete) / (len(remaining_shots) + len(shots_to_delete))
+            # Estimated size reduction
+            reel_data["size_mb"] = max(1.0, round(float(reel_data["size_mb"]) * (1.0 - 0.7 * removed_ratio), 1))
+
+        # Upload updated reel.json to R2
+        s3.put_object(
+            Bucket=R2_BUCKET,
+            Key=reel_json_key,
+            Body=json.dumps(reel_data, indent=2).encode(),
+            ContentType="application/json"
+        )
+        print(f"✅ Updated {reel_json_key} on R2 (remaining: {len(remaining_shots)} shots).")
+
+        if local_dir.exists():
+            with open(local_dir / "reel.json", "w") as f:
+                json.dump(reel_data, f, indent=2)
+
+        # 4. Update Master Catalog
+        for r in catalog:
+            if r.get("id") == target_id:
+                r["total_shots"] = len(remaining_shots)
+                if "size_mb" in reel_data:
+                    r["size_mb"] = reel_data["size_mb"]
+                break
+        save_catalog(catalog)
+        print(f"✅ Updated Master Catalog data/reels.json on R2.")
+        print(f"\n🎉 Successfully deleted {len(shots_to_delete)} scenes from '{target_id}'!")
+        return
+
+    # Full Reel Deletion
     if not args.yes:
-        conf = input(f"🗑️ Delete reel '{title}' ({target_id}) from Cloudflare R2? [y/N]: ")
+        conf = input(f"🗑️ Delete reel '{title}' ({target_id}) entirely from Cloudflare R2? [y/N]: ")
         if conf.strip().lower() not in ["y", "yes"]:
             print("Aborted.")
             return

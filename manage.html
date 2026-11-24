@@ -246,6 +246,162 @@
       width: 100%;
       max-width: 480px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      transition: max-width 0.25s ease;
+    }
+    .modal-box.modal-wide {
+      max-width: 680px;
+    }
+
+    /* Delete Choice Cards */
+    .delete-choice-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      margin-bottom: 12px;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+    .delete-choice-card:hover {
+      border-color: rgba(59, 130, 246, 0.5);
+      background: rgba(59, 130, 246, 0.06);
+      transform: translateY(-1px);
+    }
+    .delete-choice-card.danger:hover {
+      border-color: rgba(239, 68, 68, 0.5);
+      background: rgba(239, 68, 68, 0.06);
+    }
+    .choice-icon {
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    .choice-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .choice-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+    .choice-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .choice-arrow {
+      color: var(--text-muted);
+      font-size: 18px;
+    }
+
+    /* Partial Scene Selector Grid */
+    .partial-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0 12px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .partial-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .scenes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      max-height: 48vh;
+      overflow-y: auto;
+      padding: 4px 2px;
+    }
+    .scene-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .scene-card:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    .scene-card.selected {
+      border-color: var(--danger);
+      background: rgba(239, 68, 68, 0.12);
+      box-shadow: 0 0 0 1px var(--danger);
+    }
+    .scene-media-box {
+      width: 100%;
+      height: 130px;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .scene-media-box video,
+    .scene-media-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .scene-chk-overlay {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.65);
+      border: 1.5px solid rgba(255, 255, 255, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: transparent;
+      font-size: 11px;
+      font-weight: bold;
+      transition: all 0.15s ease;
+      z-index: 2;
+    }
+    .scene-card.selected .scene-chk-overlay {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+    .scene-card-footer {
+      padding: 6px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .scene-card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .scene-card.selected .scene-card-title {
+      color: #fca5a5;
+    }
+    .scene-card-dur {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: monospace;
     }
 
     .modal-title {
@@ -335,23 +491,105 @@
   </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
+<!-- Delete Modal: Multi-view (Choice -> Entire Reel OR Partial Scenes) -->
 <div class="modal-backdrop" id="delete-modal">
-  <div class="modal-box">
-    <h3 class="modal-title" style="color: var(--danger);">🗑️ Delete Reel Entirely?</h3>
-    <div class="modal-body" id="delete-modal-text">
-      Are you sure? This will permanently delete all GIFs, full video.mp4, and thumbnails from your Cloudflare R2 bucket.
+  <div class="modal-box" id="delete-modal-box">
+    
+    <!-- VIEW 1: Deletion Choice View -->
+    <div id="delete-view-choice">
+      <h3 class="modal-title">🗑️ Manage Reel Deletion</h3>
+      <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+        <strong id="choice-reel-title" style="color: #fff;"></strong> 
+        <div id="choice-reel-id" class="reel-id-tag" style="margin-top: 4px;"></div>
+      </div>
+      <div style="font-size: 14px; margin-bottom: 12px; color: #cbd5e1;">Choose deletion mode:</div>
+
+      <!-- Option A: Delete Partial Scenes -->
+      <div class="delete-choice-card" onclick="showPartialDeleteView()">
+        <div class="choice-icon">✂️</div>
+        <div class="choice-text">
+          <div class="choice-title">Delete Selected Split Scenes</div>
+          <div class="choice-desc">Select and remove only specific unwanted clips while keeping the reel intact. Updates reel metadata and saves R2 storage.</div>
+        </div>
+        <div class="choice-arrow">→</div>
+      </div>
+
+      <!-- Option B: Delete Entire Reel -->
+      <div class="delete-choice-card danger" onclick="showEntireDeleteView()">
+        <div class="choice-icon">🗑️</div>
+        <div class="choice-text">
+          <div class="choice-title" style="color: var(--danger);">Delete Reel Entirely</div>
+          <div class="choice-desc">Permanently wipe all split scenes, full video.mp4, and thumbnails, removing this reel completely from your library.</div>
+        </div>
+        <div class="choice-arrow">→</div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      </div>
     </div>
 
-    <div style="font-size: 12px; margin-bottom: 14px; color: var(--text-muted);">
-      Or delete from terminal on Mac / Raspberry Pi:
-      <div class="cli-box" id="delete-cli-cmd">python3 scripts/delete_reel.py &lt;id&gt;</div>
+    <!-- VIEW 2: Delete Entire Reel Confirmation -->
+    <div id="delete-view-entire" style="display: none;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="showDeleteChoiceView()">← Back</button>
+        <h3 class="modal-title" style="color: var(--danger); margin: 0;">🗑️ Delete Reel Entirely?</h3>
+      </div>
+      <div class="modal-body" id="delete-modal-text" style="margin-top: 12px;">
+        Are you sure? This will permanently delete all clips, full video.mp4, and thumbnails from your Cloudflare R2 bucket.
+      </div>
+
+      <div style="font-size: 12px; margin-bottom: 14px; color: var(--text-muted);">
+        Or delete from terminal on Mac / Raspberry Pi:
+        <div class="cli-box" id="delete-cli-cmd">python3 scripts/delete_reel.py &lt;id&gt;</div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+        <button class="btn btn-danger" id="confirm-delete-btn" onclick="executeDeleteEntire()">Delete Entirely from R2</button>
+      </div>
     </div>
 
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
-      <button class="btn btn-danger" id="confirm-delete-btn" onclick="executeDelete()">Delete from R2</button>
+    <!-- VIEW 3: Delete Partial Scenes Selection -->
+    <div id="delete-view-partial" style="display: none;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="showDeleteChoiceView()">← Back</button>
+          <h3 class="modal-title" style="margin: 0;">✂️ Delete Split Scenes</h3>
+        </div>
+        <span class="partial-badge" id="partial-selected-badge">0 selected</span>
+      </div>
+
+      <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
+        Tap on any scene you want to delete. Unselected scenes will remain safe.
+      </div>
+
+      <div class="partial-toolbar">
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="selectAllScenes(true)">Select All</button>
+          <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="selectAllScenes(false)">Deselect All</button>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted);" id="partial-scenes-counter">Loading scenes...</div>
+      </div>
+
+      <!-- Scenes Grid -->
+      <div class="scenes-grid" id="partial-scenes-grid">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <div style="font-size: 11px; margin-top: 12px; color: var(--text-muted);">
+        Terminal shortcut:
+        <div class="cli-box" id="delete-partial-cli-cmd" style="padding: 6px 10px; font-size: 11px;">python3 scripts/delete_reel.py &lt;id&gt; --shots &lt;ids&gt;</div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+        <button class="btn btn-danger" id="confirm-partial-delete-btn" onclick="executeDeletePartial()" disabled>
+          Delete Selected Scenes (0)
+        </button>
+      </div>
     </div>
+
   </div>
 </div>
 
@@ -503,22 +741,164 @@
     renderTable(filtered);
   };
 
+  let loadedReelData = null;
+  let selectedShotIds = new Set();
+
   window.promptDelete = function(id, title) {
     pendingDeleteReel = { id, title };
-    document.getElementById('delete-modal-text').innerHTML = `
-      Are you sure you want to delete <strong>${title}</strong> (<code>${id}</code>)?<br><br>
-      This will permanently delete all <strong>GIF shots</strong>, the <strong>full video.mp4</strong>, and <strong>thumbnail.jpg</strong> from your Cloudflare R2 bucket.
-    `;
-    document.getElementById('delete-cli-cmd').textContent = `python3 scripts/delete_reel.py ${id}`;
+    loadedReelData = null;
+    selectedShotIds.clear();
+
+    document.getElementById('choice-reel-title').textContent = title;
+    document.getElementById('choice-reel-id').textContent = id;
+    showDeleteChoiceView();
     document.getElementById('delete-modal').classList.add('active');
   };
 
   window.closeDeleteModal = function() {
     document.getElementById('delete-modal').classList.remove('active');
     pendingDeleteReel = null;
+    loadedReelData = null;
+    selectedShotIds.clear();
   };
 
-  window.executeDelete = async function() {
+  window.showDeleteChoiceView = function() {
+    document.getElementById('delete-modal-box').classList.remove('modal-wide');
+    document.getElementById('delete-view-choice').style.display = 'block';
+    document.getElementById('delete-view-entire').style.display = 'none';
+    document.getElementById('delete-view-partial').style.display = 'none';
+  };
+
+  window.showEntireDeleteView = function() {
+    if (!pendingDeleteReel) return;
+    const { id, title } = pendingDeleteReel;
+    document.getElementById('delete-modal-box').classList.remove('modal-wide');
+    document.getElementById('delete-view-choice').style.display = 'none';
+    document.getElementById('delete-view-entire').style.display = 'block';
+    document.getElementById('delete-view-partial').style.display = 'none';
+
+    document.getElementById('delete-modal-text').innerHTML = `
+      Are you sure you want to delete <strong>${title}</strong> (<code>${id}</code>)?<br><br>
+      This will permanently delete all split clips, the <strong>full video.mp4</strong>, and <strong>thumbnail.jpg</strong> from your Cloudflare R2 bucket.
+    `;
+    document.getElementById('delete-cli-cmd').textContent = `python3 scripts/delete_reel.py ${id}`;
+  };
+
+  window.showPartialDeleteView = async function() {
+    if (!pendingDeleteReel) return;
+    const { id, title } = pendingDeleteReel;
+    selectedShotIds.clear();
+
+    document.getElementById('delete-modal-box').classList.add('modal-wide');
+    document.getElementById('delete-view-choice').style.display = 'none';
+    document.getElementById('delete-view-entire').style.display = 'none';
+    document.getElementById('delete-view-partial').style.display = 'block';
+
+    const grid = document.getElementById('partial-scenes-grid');
+    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 30px; color: var(--text-muted);">⏳ Loading reel scenes from Cloudflare R2...</div>';
+    document.getElementById('partial-scenes-counter').textContent = 'Loading...';
+    updatePartialSelectionUI();
+
+    try {
+      const reelJsonUrl = resolveMediaUrl(`data/reels/${id}/reel.json`) + '?t=' + Date.now();
+      const res = await fetch(reelJsonUrl, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      loadedReelData = await res.json();
+      renderPartialScenes(loadedReelData);
+    } catch (err) {
+      console.error('Failed to load reel.json:', err);
+      grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 24px; color: var(--danger);">⚠️ Could not load scenes: ${err.message}</div>`;
+    }
+  };
+
+  function renderPartialScenes(reel) {
+    const grid = document.getElementById('partial-scenes-grid');
+    grid.innerHTML = '';
+    const basePath = `data/reels/${reel.id}/`;
+
+    if (!reel.shots || reel.shots.length === 0) {
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--text-muted);">No scenes in this reel.</div>';
+      document.getElementById('partial-scenes-counter').textContent = '0 scenes';
+      return;
+    }
+
+    document.getElementById('partial-scenes-counter').textContent = `${reel.shots.length} total scenes in reel`;
+
+    reel.shots.forEach(shot => {
+      const card = document.createElement('div');
+      card.className = `scene-card ${selectedShotIds.has(shot.id) ? 'selected' : ''}`;
+      card.id = `scene-card-${shot.id}`;
+      card.onclick = () => toggleSceneSelection(shot.id);
+
+      const clipUrl = resolveMediaUrl(basePath + shot.clip);
+      const isMp4 = shot.clip && shot.clip.toLowerCase().endsWith('.mp4');
+
+      const mediaHtml = isMp4 
+        ? `<video src="${clipUrl}" muted loop playsinline preload="metadata" onmouseenter="this.play().catch(()=>{})" onmouseleave="this.pause()"></video>`
+        : `<img src="${clipUrl}" alt="${shot.title}" loading="lazy">`;
+
+      card.innerHTML = `
+        <div class="scene-chk-overlay">✓</div>
+        <div class="scene-media-box">
+          ${mediaHtml}
+        </div>
+        <div class="scene-card-footer">
+          <div class="scene-card-title">${shot.title}</div>
+          <div class="scene-card-dur">${shot.duration}</div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    updatePartialSelectionUI();
+  }
+
+  window.toggleSceneSelection = function(shotId) {
+    if (selectedShotIds.has(shotId)) {
+      selectedShotIds.delete(shotId);
+    } else {
+      selectedShotIds.add(shotId);
+    }
+    const card = document.getElementById(`scene-card-${shotId}`);
+    if (card) {
+      card.classList.toggle('selected', selectedShotIds.has(shotId));
+    }
+    updatePartialSelectionUI();
+  };
+
+  window.selectAllScenes = function(selectAll) {
+    if (!loadedReelData || !loadedReelData.shots) return;
+    if (selectAll) {
+      loadedReelData.shots.forEach(s => selectedShotIds.add(s.id));
+    } else {
+      selectedShotIds.clear();
+    }
+    loadedReelData.shots.forEach(s => {
+      const card = document.getElementById(`scene-card-${s.id}`);
+      if (card) card.classList.toggle('selected', selectAll);
+    });
+    updatePartialSelectionUI();
+  };
+
+  function updatePartialSelectionUI() {
+    const count = selectedShotIds.size;
+    const badge = document.getElementById('partial-selected-badge');
+    const btn = document.getElementById('confirm-partial-delete-btn');
+    const cliCmd = document.getElementById('delete-partial-cli-cmd');
+
+    if (badge) badge.textContent = `${count} selected`;
+    if (btn) {
+      btn.disabled = count === 0;
+      btn.textContent = count > 0 ? `Delete Selected Scenes (${count})` : 'Delete Selected Scenes (0)';
+    }
+
+    if (cliCmd && pendingDeleteReel) {
+      const idList = Array.from(selectedShotIds).sort((a,b)=>a-b).join(',');
+      cliCmd.textContent = `python3 scripts/delete_reel.py ${pendingDeleteReel.id}${idList ? ` --shots ${idList}` : ''}`;
+    }
+  }
+
+  window.executeDeleteEntire = async function() {
     if (!pendingDeleteReel) return;
     const { id, title } = pendingDeleteReel;
     const btn = document.getElementById('confirm-delete-btn');
@@ -565,23 +945,86 @@
       showToast(`✅ Successfully deleted "${title}" from Cloudflare R2!`);
     } catch (err) {
       console.error('Delete error:', err);
-      const isCors = err.message && (err.message.includes('fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'));
-      if (isCors) {
-        alert(
-          '⚠️ Delete failed: Browser CORS Blocked by Cloudflare R2\n\n' +
-          'Cloudflare R2 blocks browser DELETE & PUT requests by default until a CORS Policy is configured in the Cloudflare bucket settings.\n\n' +
-          'To enable 1-click web deletion:\n' +
-          '1. In Cloudflare Dashboard -> R2 -> sakrecubesdb-assets -> Settings\n' +
-          '2. Under "CORS Policy", click Add and allow methods: GET, PUT, POST, DELETE, HEAD\n\n' +
-          'Or run in terminal on Mac / Pi:\n' +
-          'python3 scripts/delete_reel.py ' + id
-        );
-      } else {
-        alert('Delete failed: ' + err.message + '\n\nYou can also delete via terminal: python3 scripts/delete_reel.py ' + id);
-      }
+      alert('Delete failed: ' + err.message + '\n\nYou can also delete via terminal: python3 scripts/delete_reel.py ' + id);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Delete from R2';
+      btn.textContent = 'Delete Entirely from R2';
+    }
+  };
+
+  window.executeDeletePartial = async function() {
+    if (!pendingDeleteReel || !loadedReelData || selectedShotIds.size === 0) return;
+    const count = selectedShotIds.size;
+    if (!confirm(`Are you sure you want to permanently delete these ${count} split scenes from Cloudflare R2?`)) return;
+
+    const { id, title } = pendingDeleteReel;
+    const btn = document.getElementById('confirm-partial-delete-btn');
+    btn.disabled = true;
+    btn.textContent = `Deleting ${count} scenes from R2...`;
+
+    const endpoint = (localStorage.getItem('r2_cfg_endpoint') || DEFAULT_ENDPOINT).replace(/\/+$/, '');
+    const accessKeyId = localStorage.getItem('r2_cfg_key') || DEFAULT_KEY;
+    const secretAccessKey = localStorage.getItem('r2_cfg_secret') || DEFAULT_SECRET;
+
+    try {
+      const client = new AwsClient({
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
+        service: 's3',
+        region: 'auto'
+      });
+
+      // 1. Delete each selected shot clip file from R2
+      const shotsToDelete = loadedReelData.shots.filter(s => selectedShotIds.has(s.id));
+      for (const shot of shotsToDelete) {
+        const clipKey = `data/reels/${id}/${shot.clip}`;
+        const deleteUrl = `${endpoint}/${BUCKET_NAME}/${clipKey}`;
+        await client.fetch(deleteUrl, { method: 'DELETE' });
+      }
+
+      // 2. Filter remaining shots
+      const remainingShots = loadedReelData.shots.filter(s => !selectedShotIds.has(s.id));
+      loadedReelData.shots = remainingShots;
+      loadedReelData.total_shots = remainingShots.length;
+
+      // Update package size
+      if (loadedReelData.size_mb && (remainingShots.length + shotsToDelete.length) > 0) {
+        const removedFraction = shotsToDelete.length / (remainingShots.length + shotsToDelete.length);
+        loadedReelData.size_mb = Math.max(1.0, Math.round(loadedReelData.size_mb * (1.0 - 0.7 * removedFraction) * 10) / 10);
+      }
+
+      // 3. PUT updated reel.json to R2
+      const putReelJsonUrl = `${endpoint}/${BUCKET_NAME}/data/reels/${id}/reel.json`;
+      await client.fetch(putReelJsonUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loadedReelData, null, 2)
+      });
+
+      // 4. Update Master Catalog on R2
+      const catIndex = masterCatalog.findIndex(r => r.id === id);
+      if (catIndex !== -1) {
+        masterCatalog[catIndex].total_shots = remainingShots.length;
+        if (loadedReelData.size_mb) {
+          masterCatalog[catIndex].size_mb = loadedReelData.size_mb;
+        }
+      }
+      const putCatUrl = `${endpoint}/${BUCKET_NAME}/data/reels.json`;
+      await client.fetch(putCatUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(masterCatalog, null, 2)
+      });
+
+      renderTable(masterCatalog);
+      closeDeleteModal();
+      showToast(`✅ Successfully deleted ${shotsToDelete.length} scenes from "${title}"!`);
+    } catch (err) {
+      console.error('Partial delete error:', err);
+      alert('Partial scene deletion failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = `Delete Selected Scenes (${selectedShotIds.size})`;
     }
   };
 
