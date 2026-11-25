@@ -592,6 +592,327 @@
       object-fit: contain;
     }
 
+    /* Shot Save / Bookmark Button */
+    .shot-save-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+    .shot-save-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    .shot-save-btn:active {
+      transform: scale(0.88);
+    }
+    .shot-save-btn.saved {
+      color: #f59e0b;
+    }
+    .shot-save-btn.saved svg {
+      fill: #f59e0b;
+      stroke: #f59e0b;
+    }
+
+    /* Attribution Badge on Collection View */
+    .scene-reel-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--primary);
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: 6px;
+      padding: 2px 7px;
+      margin-top: 4px;
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+    .scene-reel-badge:hover {
+      background: rgba(59, 130, 246, 0.2);
+    }
+
+    /* Saved Collections 3xN Grid */
+    .collections-section {
+      margin-bottom: 26px;
+    }
+    .badge-count {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .collections-grid-3xN {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .collection-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+    .collection-card:hover {
+      border-color: rgba(99, 102, 241, 0.45);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+    }
+    .collection-card:active {
+      transform: scale(0.97);
+    }
+    .collection-cover {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #000;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .collection-cover video,
+    .collection-cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .collection-cover-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: var(--text-muted);
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.85));
+    }
+    .collection-card-info {
+      padding: 8px 10px;
+      background: var(--card-bg);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .collection-card-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+    .collection-card-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Instagram-Style Overlay Bottom Sheet */
+    .sheet-box {
+      background: #111827;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      max-width: 520px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      bottom: 0;
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.7);
+      animation: sheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+      padding-bottom: calc(var(--safe-bottom) + 16px);
+      z-index: 1001;
+    }
+    @keyframes sheetSlideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .sheet-drag-handle {
+      width: 38px;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.25);
+      margin: 10px auto 4px auto;
+    }
+    .sheet-header {
+      padding: 10px 20px 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .sheet-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .btn-sheet-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+    .sheet-item-preview {
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sheet-preview-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #000;
+      flex-shrink: 0;
+    }
+    .sheet-preview-meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .sheet-preview-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+    .sheet-preview-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .new-col-row {
+      padding: 12px 20px;
+      display: flex;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .new-col-row input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: #fff;
+      font-size: 13px;
+    }
+    .new-col-row input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .sheet-collections-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+      max-height: 45vh;
+    }
+    .sheet-col-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      user-select: none;
+    }
+    .sheet-col-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .sheet-col-item:active {
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .sheet-col-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: #000;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+    .sheet-col-thumb video,
+    .sheet-col-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .sheet-col-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .sheet-col-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sheet-col-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .sheet-col-chk {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: transparent;
+      font-size: 13px;
+      font-weight: bold;
+      transition: all 0.18s ease;
+      flex-shrink: 0;
+    }
+    .sheet-col-item.in-collection .sheet-col-chk {
+      background: #f59e0b;
+      border-color: #f59e0b;
+      color: #000;
+    }
+
     /* Master Library Modal Sheet */
     .library-modal {
       position: fixed;
@@ -921,8 +1242,27 @@
   <!-- Main Container -->
   <main class="container">
 
-    <!-- 1. Home View (Active Trip Board) -->
+    <!-- 1. Home View (Active Trip Board + Saved Collections) -->
     <section id="view-home" class="view active">
+      
+      <!-- 0. Saved Collections Section (3xN format) -->
+      <div class="collections-section" id="collections-section">
+        <div class="section-title">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span>📁 Saved Collections</span>
+            <span id="collections-count-badge" class="badge-count">0</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="promptCreateCollection()" style="border-radius: 20px; font-size: 11px; padding: 4px 10px;">
+            + New
+          </button>
+        </div>
+        
+        <div class="collections-grid-3xN" id="collections-grid">
+          <!-- Injected via JavaScript (3 columns) -->
+        </div>
+      </div>
+
+      <!-- Active Trip Board Section -->
       <div class="section-title">
         <span id="home-board-title">Trip Board</span>
         <div class="home-actions">
@@ -1003,6 +1343,32 @@
 
     </section>
 
+    <!-- 3. Collection View (Saved Split Scenes across reels) -->
+    <section id="view-collection" class="view">
+      <div class="detail-nav-row">
+        <button class="back-btn" onclick="showHomeView()">← Collections</button>
+        
+        <div class="detail-nav-actions">
+          <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="openCollectionOptionsMenu()">
+            ⚙️ Manage
+          </button>
+        </div>
+      </div>
+
+      <div class="detail-title-box">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <h1 class="detail-main-title" id="col-view-title">Collection</h1>
+          <span class="badge-count" id="col-view-count">0 clips</span>
+        </div>
+        <div class="detail-sub-title" id="col-view-subtitle">Saved inspiration clips from your reels</div>
+      </div>
+
+      <!-- Collection Shot Cards List -->
+      <div class="shots-list" id="col-shots-container">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
   </main>
 
   <!-- Master Catalog / Library Browser Modal -->
@@ -1057,6 +1423,72 @@
 
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeOptionsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instagram-Style Save to Collection Overlay Sheet -->
+  <div class="modal-overlay" id="save-collection-sheet" onclick="handleSaveSheetBackdropClick(event)">
+    <div class="sheet-box">
+      <div class="sheet-drag-handle"></div>
+      
+      <div class="sheet-header">
+        <div class="sheet-title">Save to Collection</div>
+        <button class="btn-sheet-close" onclick="closeSaveCollectionSheet()">✕</button>
+      </div>
+
+      <!-- Item being saved preview banner -->
+      <div class="sheet-item-preview" id="save-sheet-item-preview">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <!-- Quick New Collection Input Row -->
+      <div class="new-col-row">
+        <input type="text" id="new-col-input" placeholder="New collection name (e.g. Drone, Poses)..." maxlength="40" onkeydown="if(event.key==='Enter') createCollectionFromSheet()">
+        <button class="btn btn-secondary" style="background: var(--primary); color: #fff; padding: 6px 14px; font-size: 13px;" onclick="createCollectionFromSheet()">+ Create</button>
+      </div>
+
+      <!-- List of Collections with Checkmarks -->
+      <div class="sheet-collections-list" id="sheet-collections-list">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- New Collection Prompt Modal (for Home Screen "+ New" button) -->
+  <div class="modal-overlay" id="new-collection-modal">
+    <div class="modal-box" style="max-width: 420px;">
+      <h2 class="modal-title">New Collection</h2>
+      <p class="modal-desc">Create a saved group for favorite poses, scenes, or themes.</p>
+      
+      <div style="margin: 16px 0;">
+        <input type="text" id="home-new-col-input" placeholder="Collection name (e.g. Guy Poses, Food Closeups)..." maxlength="40" style="width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 10px; color: #fff; font-size: 14px;" onkeydown="if(event.key==='Enter') submitNewCollectionFromModal()">
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeNewCollectionModal()">Cancel</button>
+        <button class="btn btn-secondary" style="background: var(--primary); color: #fff;" onclick="submitNewCollectionFromModal()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collection Options Modal (Rename / Delete) -->
+  <div class="modal-overlay" id="collection-options-modal">
+    <div class="modal-box" style="max-width: 420px;">
+      <h2 class="modal-title" id="col-options-title">Collection Options</h2>
+      <p class="modal-desc" id="col-options-subtitle">Manage this saved collection.</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 10px; margin: 18px 0;">
+        <button class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;" onclick="promptRenameCollection()">
+          ✏️ Rename Collection
+        </button>
+        <button class="btn btn-danger" style="width: 100%; text-align: left; padding: 12px;" onclick="confirmDeleteCollection()">
+          🗑️ Delete Collection
+        </button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeCollectionOptionsMenu()">Close</button>
       </div>
     </div>
   </div>
@@ -1196,6 +1628,509 @@
     const objectUrlMap = new Map();
     const RING_CIRCUMFERENCE = 87.96; // 2 * PI * 14
 
+    /* ========================================================================
+       SAVED COLLECTIONS (INSTAGRAM-STYLE AGGREGATION ACROSS REELS)
+       ======================================================================== */
+    const COLLECTIONS_KEY = 'reelshot_collections';
+
+    function getCollections() {
+      try {
+        return JSON.parse(localStorage.getItem(COLLECTIONS_KEY) || '[]');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveCollections(cols) {
+      localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(cols));
+    }
+
+    function isShotInCollection(col, reelId, shotId) {
+      return (col.items || []).some(item => item.reelId === reelId && item.shotId === shotId);
+    }
+
+    function getCollectionsForShot(reelId, shotId) {
+      const cols = getCollections();
+      return cols.filter(c => isShotInCollection(c, reelId, shotId));
+    }
+
+    function createCollection(name) {
+      const cleanName = (name || '').trim();
+      if (!cleanName) return null;
+      const cols = getCollections();
+      const newCol = {
+        id: 'col_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        name: cleanName,
+        createdAt: new Date().toISOString(),
+        items: []
+      };
+      cols.unshift(newCol);
+      saveCollections(cols);
+      return newCol;
+    }
+
+    function renameCollection(colId, newName) {
+      const cleanName = (newName || '').trim();
+      if (!cleanName) return false;
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      if (col) {
+        col.name = cleanName;
+        saveCollections(cols);
+        return true;
+      }
+      return false;
+    }
+
+    function deleteCollection(colId) {
+      let cols = getCollections();
+      cols = cols.filter(c => c.id !== colId);
+      saveCollections(cols);
+    }
+
+    function toggleShotInCollection(colId, shotItem) {
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      if (!col) return false;
+      if (!col.items) col.items = [];
+
+      const existingIdx = col.items.findIndex(i => i.reelId === shotItem.reelId && i.shotId === shotItem.shotId);
+      let added = false;
+      if (existingIdx >= 0) {
+        col.items.splice(existingIdx, 1);
+        added = false;
+      } else {
+        col.items.push(shotItem);
+        added = true;
+      }
+      saveCollections(cols);
+      return added;
+    }
+
+    // Auto-purge any items if reel or split shot was deleted
+    function sanitizeCollectionsWithCatalog(catalog) {
+      if (!catalog || !Array.isArray(catalog)) return;
+      const cols = getCollections();
+      let modified = false;
+
+      for (const col of cols) {
+        if (!col.items || !col.items.length) continue;
+        const initialCount = col.items.length;
+        col.items = col.items.filter(item => {
+          const parentReel = catalog.find(r => r.id === item.reelId);
+          if (!parentReel) return false; // Entire reel was deleted
+          if (parentReel.shots && Array.isArray(parentReel.shots)) {
+            const shotExists = parentReel.shots.some(s => s.id === item.shotId);
+            if (!shotExists) return false; // Split scene was partially deleted
+          }
+          return true;
+        });
+        if (col.items.length !== initialCount) {
+          modified = true;
+        }
+      }
+
+      if (modified) {
+        saveCollections(cols);
+      }
+    }
+
+    // Render 3xN Grid on Home Screen
+    function renderCollectionsGrid() {
+      const cols = getCollections();
+      const gridEl = document.getElementById('collections-grid');
+      const countBadge = document.getElementById('collections-count-badge');
+      if (!gridEl) return;
+
+      if (countBadge) {
+        countBadge.textContent = `${cols.length}`;
+      }
+
+      if (cols.length === 0) {
+        gridEl.innerHTML = `
+          <div style="grid-column: span 3; text-align: center; padding: 20px 14px; background: var(--card-bg); border: 1px dashed var(--border); border-radius: 12px; color: var(--text-muted); font-size: 13px;">
+            <span style="font-size: 22px; display: block; margin-bottom: 6px;">🔖</span>
+            <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 2px;">No Saved Collections</div>
+            <div style="font-size: 11px; opacity: 0.8;">Tap the bookmark icon on any split scene to save poses, drone shots, or aesthetics.</div>
+          </div>
+        `;
+        return;
+      }
+
+      gridEl.innerHTML = '';
+      for (const col of cols) {
+        const card = document.createElement('div');
+        card.className = 'collection-card';
+        card.onclick = () => openCollectionView(col.id);
+
+        const firstItem = col.items && col.items.length > 0 ? col.items[0] : null;
+        let coverHtml = '';
+
+        if (firstItem) {
+          const videoUrl = resolveMediaUrl(firstItem.basePath + firstItem.clip);
+          coverHtml = `
+            <div class="collection-cover">
+              <video class="shot-loop-video" src="${videoUrl}" muted loop autoplay playsinline preload="metadata"></video>
+            </div>
+          `;
+        } else {
+          coverHtml = `
+            <div class="collection-cover">
+              <div class="collection-cover-empty">
+                <span style="font-size: 28px;">📁</span>
+                <span style="font-size: 10px; opacity: 0.7;">Empty</span>
+              </div>
+            </div>
+          `;
+        }
+
+        const countText = col.items ? `${col.items.length} ${col.items.length === 1 ? 'clip' : 'clips'}` : '0 clips';
+
+        card.innerHTML = `
+          ${coverHtml}
+          <div class="collection-card-info">
+            <div class="collection-card-name" title="${col.name}">${col.name}</div>
+            <div class="collection-card-count">${countText}</div>
+          </div>
+        `;
+        gridEl.appendChild(card);
+      }
+
+      setupVideoObserver();
+    }
+
+    /* Instagram-Style Overlay Bottom Sheet */
+    let currentSheetTarget = null;
+
+    function openSaveCollectionSheet(reelId, shotId) {
+      let targetReel = masterCatalog.find(r => r.id === reelId);
+      if (!targetReel && currentReel && currentReel.id === reelId) {
+        targetReel = currentReel;
+      }
+      if (!targetReel) return;
+
+      const shot = (targetReel.shots || []).find(s => s.id === shotId);
+      if (!shot) return;
+
+      const basePath = targetReel.reel_json 
+        ? targetReel.reel_json.substring(0, targetReel.reel_json.lastIndexOf('/') + 1)
+        : 'data/reels/' + targetReel.id + '/';
+
+      currentSheetTarget = {
+        reelId: targetReel.id,
+        reelTitle: targetReel.title,
+        shotId: shot.id,
+        title: shot.title,
+        clip: shot.clip,
+        duration: shot.duration,
+        basePath: basePath,
+        addedAt: new Date().toISOString()
+      };
+
+      // Preview top banner
+      const previewEl = document.getElementById('save-sheet-item-preview');
+      if (previewEl) {
+        const fullClipUrl = resolveMediaUrl(basePath + shot.clip);
+        previewEl.innerHTML = `
+          <video class="sheet-preview-thumb" src="${fullClipUrl}" muted loop autoplay playsinline preload="metadata"></video>
+          <div class="sheet-preview-meta">
+            <div class="sheet-preview-title">${shot.title} (${shot.duration})</div>
+            <div class="sheet-preview-sub">Source: ${targetReel.title}</div>
+          </div>
+        `;
+      }
+
+      // Clear input
+      const inputEl = document.getElementById('new-col-input');
+      if (inputEl) inputEl.value = '';
+
+      renderSheetCollectionsList();
+
+      const sheet = document.getElementById('save-collection-sheet');
+      sheet.classList.add('active');
+    }
+
+    function closeSaveCollectionSheet() {
+      const sheet = document.getElementById('save-collection-sheet');
+      sheet.classList.remove('active');
+      currentSheetTarget = null;
+      renderCollectionsGrid();
+    }
+
+    function handleSaveSheetBackdropClick(e) {
+      if (e.target && e.target.id === 'save-collection-sheet') {
+        closeSaveCollectionSheet();
+      }
+    }
+
+    function renderSheetCollectionsList() {
+      const container = document.getElementById('sheet-collections-list');
+      if (!container || !currentSheetTarget) return;
+
+      const cols = getCollections();
+      if (cols.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 26px 12px; color: var(--text-muted); font-size: 13px;">
+            <div>No collections yet.</div>
+            <div style="font-size: 11px; margin-top: 4px; opacity: 0.8;">Type a name above and click "+ Create"</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      for (const col of cols) {
+        const isSaved = isShotInCollection(col, currentSheetTarget.reelId, currentSheetTarget.shotId);
+        const firstItem = col.items && col.items.length > 0 ? col.items[0] : null;
+
+        let thumbHtml = '';
+        if (firstItem) {
+          const vUrl = resolveMediaUrl(firstItem.basePath + firstItem.clip);
+          thumbHtml = `<video src="${vUrl}" muted loop autoplay playsinline preload="metadata"></video>`;
+        } else {
+          thumbHtml = `<span>📁</span>`;
+        }
+
+        const countText = col.items ? `${col.items.length} ${col.items.length === 1 ? 'clip' : 'clips'}` : '0 clips';
+
+        const row = document.createElement('div');
+        row.className = `sheet-col-item ${isSaved ? 'in-collection' : ''}`;
+        row.onclick = () => handleSheetToggleCol(col.id);
+
+        row.innerHTML = `
+          <div class="sheet-col-thumb">
+            ${thumbHtml}
+          </div>
+          <div class="sheet-col-info">
+            <div class="sheet-col-name">${col.name}</div>
+            <div class="sheet-col-meta">${countText}</div>
+          </div>
+          <div class="sheet-col-chk">
+            ✓
+          </div>
+        `;
+        container.appendChild(row);
+      }
+    }
+
+    function handleSheetToggleCol(colId) {
+      if (!currentSheetTarget) return;
+      const wasAdded = toggleShotInCollection(colId, currentSheetTarget);
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      const colName = col ? col.name : 'Collection';
+
+      renderSheetCollectionsList();
+
+      // Update underlying bookmark button in reel view
+      const btn = document.getElementById(`save-btn-${currentSheetTarget.reelId}-${currentSheetTarget.shotId}`);
+      if (btn) {
+        const hasAny = getCollectionsForShot(currentSheetTarget.reelId, currentSheetTarget.shotId).length > 0;
+        if (hasAny) {
+          btn.classList.add('saved');
+        } else {
+          btn.classList.remove('saved');
+        }
+      }
+
+      showToast(wasAdded ? `Saved to "${colName}"` : `Removed from "${colName}"`);
+    }
+
+    function createCollectionFromSheet() {
+      const input = document.getElementById('new-col-input');
+      if (!input) return;
+      const name = input.value.trim();
+      if (!name) return;
+
+      const newCol = createCollection(name);
+      input.value = '';
+      if (newCol && currentSheetTarget) {
+        toggleShotInCollection(newCol.id, currentSheetTarget);
+        showToast(`Created & Saved to "${newCol.name}"`);
+        renderSheetCollectionsList();
+
+        const btn = document.getElementById(`save-btn-${currentSheetTarget.reelId}-${currentSheetTarget.shotId}`);
+        if (btn) btn.classList.add('saved');
+      }
+    }
+
+    /* Modal for Creating New Collection from Home Screen */
+    function promptCreateCollection() {
+      const input = document.getElementById('home-new-col-input');
+      if (input) input.value = '';
+      document.getElementById('new-collection-modal').classList.add('active');
+      setTimeout(() => { if (input) input.focus(); }, 120);
+    }
+
+    function closeNewCollectionModal() {
+      document.getElementById('new-collection-modal').classList.remove('active');
+    }
+
+    function submitNewCollectionFromModal() {
+      const input = document.getElementById('home-new-col-input');
+      const name = input ? input.value.trim() : '';
+      if (!name) return;
+
+      const newCol = createCollection(name);
+      closeNewCollectionModal();
+      renderCollectionsGrid();
+      showToast(`Created "${newCol.name}"`);
+      openCollectionView(newCol.id);
+    }
+
+    /* Collection View (Aggregated Split Scenes) */
+    let activeCollectionId = null;
+
+    function openCollectionView(colId) {
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      if (!col) return;
+
+      activeCollectionId = colId;
+
+      document.getElementById('col-view-title').textContent = col.name;
+      const count = (col.items || []).length;
+      document.getElementById('col-view-count').textContent = `${count} ${count === 1 ? 'clip' : 'clips'}`;
+
+      renderCollectionShots(col);
+
+      document.getElementById('view-home').classList.remove('active');
+      document.getElementById('view-detail').classList.remove('active');
+      document.getElementById('view-collection').classList.add('active');
+      window.scrollTo(0, 0);
+    }
+
+    function renderCollectionShots(col) {
+      const container = document.getElementById('col-shots-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const items = col.items || [];
+      if (items.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+            <div style="font-size: 42px; margin-bottom: 12px;">📁</div>
+            <h3 style="color: #fff; font-size: 16px; margin-bottom: 6px;">Collection is Empty</h3>
+            <p style="font-size: 13px; line-height: 1.5; margin-bottom: 20px;">Open any reference reel on your board or master library and tap the 🔖 bookmark icon on split scenes to add them here.</p>
+            <button class="btn btn-secondary" onclick="showHomeView()">← Back to Trip Board</button>
+          </div>
+        `;
+        return;
+      }
+
+      for (const item of items) {
+        const card = document.createElement('article');
+        card.className = 'shot-card';
+        card.id = `col-shot-${item.reelId}-${item.shotId}`;
+
+        const fullClipUrl = resolveMediaUrl(item.basePath + item.clip);
+
+        card.innerHTML = `
+          <div class="shot-header">
+            <div class="shot-meta" style="flex: 1;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div class="shot-title-text">${item.title}</div>
+                <div class="shot-duration-pill">${item.duration}</div>
+              </div>
+              <div class="scene-reel-badge" onclick="openReelById('${item.reelId}')" title="Open source reel">
+                🎬 ${item.reelTitle || item.reelId}
+              </div>
+            </div>
+            <button class="shot-save-btn saved" title="Remove from this collection" onclick="removeShotFromCollection('${col.id}', '${item.reelId}', ${item.shotId})">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="shot-media-box">
+            <video class="shot-loop-video" src="${fullClipUrl}" playsinline muted loop autoplay preload="auto"></video>
+          </div>
+        `;
+        container.appendChild(card);
+
+        // Offline blob playback if cached
+        getMediaBlob(fullClipUrl).then(blob => {
+          if (blob) {
+            const blobUrl = URL.createObjectURL(blob);
+            const v = card.querySelector('video');
+            if (v) {
+              v.src = blobUrl;
+              v.play().catch(() => {});
+            }
+          }
+        });
+      }
+
+      setupVideoObserver();
+    }
+
+    function removeShotFromCollection(colId, reelId, shotId) {
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      if (!col) return;
+
+      col.items = (col.items || []).filter(i => !(i.reelId === reelId && i.shotId === shotId));
+      saveCollections(cols);
+
+      const count = col.items.length;
+      document.getElementById('col-view-count').textContent = `${count} ${count === 1 ? 'clip' : 'clips'}`;
+      renderCollectionShots(col);
+      showToast(`Removed from "${col.name}"`);
+    }
+
+    function openReelById(reelId) {
+      const target = masterCatalog.find(r => r.id === reelId);
+      if (target) {
+        document.getElementById('view-collection').classList.remove('active');
+        openReel(target);
+      } else {
+        showToast('Reel not found in catalog');
+      }
+    }
+
+    function openCollectionOptionsMenu() {
+      if (!activeCollectionId) return;
+      const cols = getCollections();
+      const col = cols.find(c => c.id === activeCollectionId);
+      if (!col) return;
+
+      document.getElementById('col-options-title').textContent = `Manage: ${col.name}`;
+      document.getElementById('collection-options-modal').classList.add('active');
+    }
+
+    function closeCollectionOptionsMenu() {
+      document.getElementById('collection-options-modal').classList.remove('active');
+    }
+
+    function promptRenameCollection() {
+      if (!activeCollectionId) return;
+      const cols = getCollections();
+      const col = cols.find(c => c.id === activeCollectionId);
+      if (!col) return;
+
+      closeCollectionOptionsMenu();
+      const newName = prompt(`Rename collection "${col.name}":`, col.name);
+      if (newName && newName.trim() && newName.trim() !== col.name) {
+        renameCollection(col.id, newName.trim());
+        document.getElementById('col-view-title').textContent = newName.trim();
+        showToast(`Renamed to "${newName.trim()}"`);
+      }
+    }
+
+    function confirmDeleteCollection() {
+      if (!activeCollectionId) return;
+      const cols = getCollections();
+      const col = cols.find(c => c.id === activeCollectionId);
+      if (!col) return;
+
+      if (confirm(`Delete the collection "${col.name}"? (Individual reels and shots in your library won't be affected)`)) {
+        deleteCollection(col.id);
+        closeCollectionOptionsMenu();
+        showToast(`Deleted collection "${col.name}"`);
+        showHomeView();
+      }
+    }
+
     // Helper: Active Reel IDs for this phone device
     function getActiveReelIds() {
       const stored = localStorage.getItem('reelshot_active_reel_ids');
@@ -1237,6 +2172,8 @@
 
       // Ensure chronological ordering: newest first
       masterCatalog.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+      sanitizeCollectionsWithCatalog(masterCatalog);
+      renderCollectionsGrid();
       await renderActiveBoard();
     }
 
@@ -1494,8 +2431,10 @@
       }
 
       document.getElementById('view-detail').classList.remove('active');
+      document.getElementById('view-collection').classList.remove('active');
       document.getElementById('view-home').classList.add('active');
       document.getElementById('reel-dl-btn').classList.add('hidden');
+      renderCollectionsGrid();
       renderActiveBoard();
     }
 
@@ -1647,16 +2586,22 @@
         card.style.order = isDone ? '1' : '0';
 
         const fullClipUrl = resolveMediaUrl(basePath + shot.clip);
+        const isSaved = getCollectionsForShot(reel.id, shot.id).length > 0;
 
         card.innerHTML = `
-          <div class="shot-header" onclick="toggleShot(${shot.id})">
-            <div class="shot-check">
+          <div class="shot-header">
+            <div class="shot-check" onclick="toggleShot(${shot.id})">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div class="shot-meta">
+            <div class="shot-meta" onclick="toggleShot(${shot.id})">
               <div class="shot-title-text">${shot.title}</div>
               <div class="shot-duration-pill">Duration: ${shot.duration}</div>
             </div>
+            <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="event.stopPropagation(); openSaveCollectionSheet('${reel.id}', ${shot.id})">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
           </div>
           <div class="shot-media-box">
             <video id="media-shot-${shot.id}" class="shot-loop-video" src="${fullClipUrl}" playsinline muted loop autoplay preload="auto"></video>

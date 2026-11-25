@@ -893,6 +893,48 @@
     }
   }
 
+  function pruneReelFromCollections(deletedReelId) {
+    try {
+      const raw = localStorage.getItem('reelshot_collections');
+      if (!raw) return;
+      const cols = JSON.parse(raw);
+      let changed = false;
+      for (const c of cols) {
+        if (c.items && c.items.length) {
+          const init = c.items.length;
+          c.items = c.items.filter(i => i.reelId !== deletedReelId);
+          if (c.items.length !== init) changed = true;
+        }
+      }
+      if (changed) {
+        localStorage.setItem('reelshot_collections', JSON.stringify(cols));
+      }
+    } catch (e) {
+      console.warn('Collections prune error:', e);
+    }
+  }
+
+  function pruneShotsFromCollections(reelId, deletedShotIdsSet) {
+    try {
+      const raw = localStorage.getItem('reelshot_collections');
+      if (!raw) return;
+      const cols = JSON.parse(raw);
+      let changed = false;
+      for (const c of cols) {
+        if (c.items && c.items.length) {
+          const init = c.items.length;
+          c.items = c.items.filter(i => !(i.reelId === reelId && deletedShotIdsSet.has(i.shotId)));
+          if (c.items.length !== init) changed = true;
+        }
+      }
+      if (changed) {
+        localStorage.setItem('reelshot_collections', JSON.stringify(cols));
+      }
+    } catch (e) {
+      console.warn('Collections prune error:', e);
+    }
+  }
+
   window.executeDeleteEntire = async function() {
     if (!pendingDeleteReel) return;
     const { id, title } = pendingDeleteReel;
@@ -935,6 +977,7 @@
       });
 
       masterCatalog = updatedCatalog;
+      pruneReelFromCollections(id);
       renderTable(masterCatalog);
       closeDeleteModal();
       showToast(`✅ Successfully deleted "${title}" from Cloudflare R2!`);
@@ -1011,6 +1054,7 @@
         body: JSON.stringify(masterCatalog, null, 2)
       });
 
+      pruneShotsFromCollections(id, selectedShotIds);
       renderTable(masterCatalog);
       closeDeleteModal();
       showToast(`✅ Successfully deleted ${shotsToDelete.length} scenes from "${title}"!`);
