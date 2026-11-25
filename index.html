@@ -607,6 +607,10 @@
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       flex-shrink: 0;
       margin-left: auto;
+      z-index: 2;
+    }
+    .shot-save-btn svg {
+      pointer-events: none;
     }
     .shot-save-btn:hover {
       background: rgba(255, 255, 255, 0.08);
@@ -1429,7 +1433,7 @@
 
   <!-- Instagram-Style Save to Collection Overlay Sheet -->
   <div class="modal-overlay" id="save-collection-sheet" onclick="handleSaveSheetBackdropClick(event)">
-    <div class="sheet-box">
+    <div class="sheet-box" onclick="event.stopPropagation()">
       <div class="sheet-drag-handle"></div>
       
       <div class="sheet-header">
@@ -1445,12 +1449,17 @@
       <!-- Quick New Collection Input Row -->
       <div class="new-col-row">
         <input type="text" id="new-col-input" placeholder="New collection name (e.g. Drone, Poses)..." maxlength="40" onkeydown="if(event.key==='Enter') createCollectionFromSheet()">
-        <button class="btn btn-secondary" style="background: var(--primary); color: #fff; padding: 6px 14px; font-size: 13px;" onclick="createCollectionFromSheet()">+ Create</button>
+        <button class="btn btn-secondary" style="background: var(--primary); color: #fff; padding: 6px 16px; font-size: 13px; font-weight: 600;" onclick="createCollectionFromSheet()">Save</button>
       </div>
 
       <!-- List of Collections with Checkmarks -->
       <div class="sheet-collections-list" id="sheet-collections-list">
         <!-- Injected via JavaScript -->
+      </div>
+
+      <!-- Bottom Sheet Action Bar -->
+      <div style="padding: 10px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; background: rgba(0,0,0,0.2);">
+        <button class="btn btn-secondary" style="padding: 6px 18px; font-size: 13px; border-radius: 20px;" onclick="closeSaveCollectionSheet()">Done</button>
       </div>
     </div>
   </div>
@@ -1646,7 +1655,7 @@
     }
 
     function isShotInCollection(col, reelId, shotId) {
-      return (col.items || []).some(item => item.reelId === reelId && item.shotId === shotId);
+      return (col.items || []).some(item => item.reelId === reelId && item.shotId == shotId);
     }
 
     function getCollectionsForShot(reelId, shotId) {
@@ -1694,7 +1703,7 @@
       if (!col) return false;
       if (!col.items) col.items = [];
 
-      const existingIdx = col.items.findIndex(i => i.reelId === shotItem.reelId && i.shotId === shotItem.shotId);
+      const existingIdx = col.items.findIndex(i => i.reelId === shotItem.reelId && i.shotId == shotItem.shotId);
       let added = false;
       if (existingIdx >= 0) {
         col.items.splice(existingIdx, 1);
@@ -1802,15 +1811,35 @@
     /* Instagram-Style Overlay Bottom Sheet */
     let currentSheetTarget = null;
 
-    function openSaveCollectionSheet(reelId, shotId) {
-      let targetReel = masterCatalog.find(r => r.id === reelId);
-      if (!targetReel && currentReel && currentReel.id === reelId) {
+    function openSaveCollectionSheet(reelId, shotId, e) {
+      if (e) {
+        e.stopPropagation();
+      }
+
+      // Prioritize currentReel (it has the full loaded shots array in memory)
+      let targetReel = (currentReel && currentReel.id === reelId && currentReel.shots)
+        ? currentReel
+        : masterCatalog.find(r => r.id === reelId);
+
+      if (!targetReel && currentReel) {
         targetReel = currentReel;
       }
-      if (!targetReel) return;
+      if (!targetReel) {
+        console.warn('Reel not found:', reelId);
+        return;
+      }
 
-      const shot = (targetReel.shots || []).find(s => s.id === shotId);
-      if (!shot) return;
+      // Find the specific split scene (handling loose equality for string/number safety)
+      let shot = (targetReel.shots || []).find(s => s.id == shotId);
+      if (!shot && currentReel && currentReel.shots) {
+        shot = currentReel.shots.find(s => s.id == shotId);
+        if (shot) targetReel = currentReel;
+      }
+
+      if (!shot) {
+        console.warn('Shot not found:', shotId, 'in reel:', reelId);
+        return;
+      }
 
       const basePath = targetReel.reel_json 
         ? targetReel.reel_json.substring(0, targetReel.reel_json.lastIndexOf('/') + 1)
@@ -1872,7 +1901,7 @@
         container.innerHTML = `
           <div style="text-align: center; padding: 26px 12px; color: var(--text-muted); font-size: 13px;">
             <div>No collections yet.</div>
-            <div style="font-size: 11px; margin-top: 4px; opacity: 0.8;">Type a name above and click "+ Create"</div>
+            <div style="font-size: 11px; margin-top: 4px; opacity: 0.8;">Type a name above and click "Save"</div>
           </div>
         `;
         return;
@@ -2069,7 +2098,7 @@
       const col = cols.find(c => c.id === colId);
       if (!col) return;
 
-      col.items = (col.items || []).filter(i => !(i.reelId === reelId && i.shotId === shotId));
+      col.items = (col.items || []).filter(i => !(i.reelId === reelId && i.shotId == shotId));
       saveCollections(cols);
 
       const count = col.items.length;
@@ -2597,7 +2626,7 @@
               <div class="shot-title-text">${shot.title}</div>
               <div class="shot-duration-pill">Duration: ${shot.duration}</div>
             </div>
-            <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="event.stopPropagation(); openSaveCollectionSheet('${reel.id}', ${shot.id})">
+            <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="openSaveCollectionSheet('${reel.id}', ${shot.id}, event)">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
               </svg>
