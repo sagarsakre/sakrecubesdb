@@ -935,6 +935,80 @@
     }
   }
 
+  async function pruneCloudStateOnReelDelete(client, endpoint, deletedReelId) {
+    try {
+      // 1. Prune from data/trip_board.json
+      const tbUrl = `${endpoint}/${BUCKET_NAME}/data/trip_board.json`;
+      const tbRes = await client.fetch(tbUrl);
+      if (tbRes.ok) {
+        let boardIds = await tbRes.json();
+        if (Array.isArray(boardIds) && boardIds.includes(deletedReelId)) {
+          boardIds = boardIds.filter(id => id !== deletedReelId);
+          await client.fetch(tbUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(boardIds, null, 2)
+          });
+        }
+      }
+
+      // 2. Prune from data/collections.json
+      const colUrl = `${endpoint}/${BUCKET_NAME}/data/collections.json`;
+      const colRes = await client.fetch(colUrl);
+      if (colRes.ok) {
+        let cols = await colRes.json();
+        if (Array.isArray(cols)) {
+          let modified = false;
+          for (const c of cols) {
+            if (c.items && c.items.length) {
+              const init = c.items.length;
+              c.items = c.items.filter(i => i.reelId !== deletedReelId);
+              if (c.items.length !== init) modified = true;
+            }
+          }
+          if (modified) {
+            await client.fetch(colUrl, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(cols, null, 2)
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Prune cloud state error:', e);
+    }
+  }
+
+  async function pruneCloudStateOnPartialDelete(client, endpoint, reelId, deletedShotIdsSet) {
+    try {
+      const colUrl = `${endpoint}/${BUCKET_NAME}/data/collections.json`;
+      const colRes = await client.fetch(colUrl);
+      if (colRes.ok) {
+        let cols = await colRes.json();
+        if (Array.isArray(cols)) {
+          let modified = false;
+          for (const c of cols) {
+            if (c.items && c.items.length) {
+              const init = c.items.length;
+              c.items = c.items.filter(i => !(i.reelId === reelId && deletedShotIdsSet.has(i.shotId)));
+              if (c.items.length !== init) modified = true;
+            }
+          }
+          if (modified) {
+            await client.fetch(colUrl, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(cols, null, 2)
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Prune partial cloud state error:', e);
+    }
+  }
+
   window.executeDeleteEntire = async function() {
     if (!pendingDeleteReel) return;
     const { id, title } = pendingDeleteReel;
@@ -978,6 +1052,7 @@
 
       masterCatalog = updatedCatalog;
       pruneReelFromCollections(id);
+      await pruneCloudStateOnReelDelete(client, endpoint, id);
       renderTable(masterCatalog);
       closeDeleteModal();
       showToast(`✅ Successfully deleted "${title}" from Cloudflare R2!`);
@@ -1055,6 +1130,7 @@
       });
 
       pruneShotsFromCollections(id, selectedShotIds);
+      await pruneCloudStateOnPartialDelete(client, endpoint, id, selectedShotIds);
       renderTable(masterCatalog);
       closeDeleteModal();
       showToast(`✅ Successfully deleted ${shotsToDelete.length} scenes from "${title}"!`);

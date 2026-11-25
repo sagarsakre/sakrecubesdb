@@ -78,6 +78,58 @@ def save_catalog(catalog):
     with open(local_cat, "w") as f:
         json.dump(catalog, f, indent=2)
 
+def prune_cloud_trip_board(deleted_reel_id: str):
+    try:
+        res = s3.get_object(Bucket=R2_BUCKET, Key="data/trip_board.json")
+        board = json.loads(res["Body"].read().decode())
+        if isinstance(board, list) and deleted_reel_id in board:
+            board = [r for r in board if r != deleted_reel_id]
+            s3.put_object(
+                Bucket=R2_BUCKET,
+                Key="data/trip_board.json",
+                Body=json.dumps(board, indent=2).encode(),
+                ContentType="application/json"
+            )
+            local_tb = APP_DIR / "data" / "trip_board.json"
+            if local_tb.exists():
+                with open(local_tb, "w") as f:
+                    json.dump(board, f, indent=2)
+            print(f"☁️ Pruned '{deleted_reel_id}' from Cloud Trip Board.")
+    except Exception as e:
+        print(f"⚠️ Note: could not prune trip_board.json: {e}")
+
+def prune_cloud_collections(deleted_reel_id: str, shot_ids: set = None):
+    try:
+        res = s3.get_object(Bucket=R2_BUCKET, Key="data/collections.json")
+        cols = json.loads(res["Body"].read().decode())
+        if not isinstance(cols, list):
+            return
+        modified = False
+        for c in cols:
+            items = c.get("items", [])
+            initial_len = len(items)
+            if shot_ids:
+                c["items"] = [i for i in items if not (i.get("reelId") == deleted_reel_id and int(i.get("shotId", -1)) in shot_ids)]
+            else:
+                c["items"] = [i for i in items if i.get("reelId") != deleted_reel_id]
+            if len(c["items"]) != initial_len:
+                modified = True
+
+        if modified:
+            s3.put_object(
+                Bucket=R2_BUCKET,
+                Key="data/collections.json",
+                Body=json.dumps(cols, indent=2).encode(),
+                ContentType="application/json"
+            )
+            local_col = APP_DIR / "data" / "collections.json"
+            if local_col.exists():
+                with open(local_col, "w") as f:
+                    json.dump(cols, f, indent=2)
+            print(f"☁️ Pruned deleted clips from Cloud Saved Collections.")
+    except Exception as e:
+        print(f"⚠️ Note: could not prune collections.json: {e}")
+
 def delete_prefix(prefix: str):
     res = s3.list_objects_v2(Bucket=R2_BUCKET, Prefix=prefix)
     objects = res.get("Contents", [])
@@ -138,6 +190,9 @@ def main():
                 return
         count = delete_prefix("data/reels/")
         save_catalog([])
+        prune_cloud_trip_board("")
+        s3.put_object(Bucket=R2_BUCKET, Key="data/trip_board.json", Body=b"[]", ContentType="application/json")
+        s3.put_object(Bucket=R2_BUCKET, Key="data/collections.json", Body=b"[]", ContentType="application/json")
         local_reels = APP_DIR / "data" / "reels"
         if local_reels.exists():
             shutil.rmtree(local_reels, ignore_errors=True)
@@ -239,6 +294,7 @@ def main():
                     r["size_mb"] = reel_data["size_mb"]
                 break
         save_catalog(catalog)
+        prune_cloud_collections(target_id, target_shot_ids)
         print(f"✅ Updated Master Catalog data/reels.json on R2.")
         print(f"\n🎉 Successfully deleted {len(shots_to_delete)} scenes from '{target_id}'!")
         return
@@ -258,6 +314,8 @@ def main():
     # Remove from catalog
     new_catalog = [r for r in catalog if r.get("id") != target_id]
     save_catalog(new_catalog)
+    prune_cloud_trip_board(target_id)
+    prune_cloud_collections(target_id)
     print(f"✅ Removed '{target_id}' from Master Catalog (remaining: {len(new_catalog)}).")
 
     # Clean local folder if present

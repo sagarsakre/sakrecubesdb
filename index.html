@@ -1638,6 +1638,114 @@
     const RING_CIRCUMFERENCE = 87.96; // 2 * PI * 14
 
     /* ========================================================================
+       CLOUD-SYNC ENGINE (R2 S3 API)
+       Syncs Saved Collections & Trip Board Active Reels across all devices
+       (iPhone 13, iPhone 15, Mac, iPad) while keeping offline media cache local.
+       ======================================================================== */
+    const R2_ENDPOINT = 'https://97a82140773b3561df737fca1289618a.r2.cloudflarestorage.com';
+    const R2_ACCESS_KEY_ID = '305011393627d3e6b541c6ade7394e5d';
+    const R2_SECRET_ACCESS_KEY = '35a69d56edaa256e1fd93b6501173ab9f4df775b4b44431552c20668722c4e17';
+    const R2_BUCKET = 'sakrecubesdb-assets';
+
+    let r2ClientPromise = null;
+    function getR2Client() {
+      if (!r2ClientPromise) {
+        r2ClientPromise = import('https://esm.sh/aws4fetch@1.0.20')
+          .then(({ AwsClient }) => {
+            return new AwsClient({
+              accessKeyId: R2_ACCESS_KEY_ID,
+              secretAccessKey: R2_SECRET_ACCESS_KEY,
+              service: 's3',
+              region: 'auto'
+            });
+          })
+          .catch(err => {
+            console.warn('Failed to load AwsClient for cloud sync:', err);
+            return null;
+          });
+      }
+      return r2ClientPromise;
+    }
+
+    // Debounced Cloud Sync for Collections
+    let collectionsSyncTimer = null;
+    function pushCollectionsToCloud(cols) {
+      clearTimeout(collectionsSyncTimer);
+      collectionsSyncTimer = setTimeout(async () => {
+        try {
+          const client = await getR2Client();
+          if (!client) return;
+          const putUrl = `${R2_ENDPOINT}/${R2_BUCKET}/data/collections.json`;
+          await client.fetch(putUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cols, null, 2)
+          });
+          console.log('☁️ Synced collections to R2 cloud');
+        } catch (e) {
+          console.warn('Cloud sync error (collections):', e);
+        }
+      }, 300);
+    }
+
+    // Debounced Cloud Sync for Trip Board
+    let tripBoardSyncTimer = null;
+    function pushTripBoardToCloud(ids) {
+      clearTimeout(tripBoardSyncTimer);
+      tripBoardSyncTimer = setTimeout(async () => {
+        try {
+          const client = await getR2Client();
+          if (!client) return;
+          const putUrl = `${R2_ENDPOINT}/${R2_BUCKET}/data/trip_board.json`;
+          await client.fetch(putUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(ids, null, 2)
+          });
+          console.log('☁️ Synced Trip Board to R2 cloud');
+        } catch (e) {
+          console.warn('Cloud sync error (trip board):', e);
+        }
+      }, 300);
+    }
+
+    // Fetch collections from cloud server on start
+    async function loadCloudCollections() {
+      try {
+        const cacheBuster = '?t=' + Date.now();
+        const res = await fetch(resolveMediaUrl('data/collections.json') + cacheBuster, { cache: 'no-store' });
+        if (res.ok) {
+          const serverCols = await res.json();
+          if (Array.isArray(serverCols)) {
+            saveCollections(serverCols, false);
+            return serverCols;
+          }
+        }
+      } catch (err) {
+        console.warn('Using local cached collections (offline):', err);
+      }
+      return getCollections();
+    }
+
+    // Fetch trip board from cloud server on start
+    async function loadCloudTripBoard() {
+      try {
+        const cacheBuster = '?t=' + Date.now();
+        const res = await fetch(resolveMediaUrl('data/trip_board.json') + cacheBuster, { cache: 'no-store' });
+        if (res.ok) {
+          const serverIds = await res.json();
+          if (Array.isArray(serverIds)) {
+            setActiveReelIds(serverIds, false);
+            return serverIds;
+          }
+        }
+      } catch (err) {
+        console.warn('Using local cached trip board (offline):', err);
+      }
+      return getActiveReelIds();
+    }
+
+    /* ========================================================================
        SAVED COLLECTIONS (INSTAGRAM-STYLE AGGREGATION ACROSS REELS)
        ======================================================================== */
     const COLLECTIONS_KEY = 'reelshot_collections';
@@ -1650,8 +1758,11 @@
       }
     }
 
-    function saveCollections(cols) {
+    function saveCollections(cols, syncCloud = true) {
       localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(cols));
+      if (syncCloud) {
+        pushCollectionsToCloud(cols);
+      }
     }
 
     function isShotInCollection(col, reelId, shotId) {
@@ -2170,8 +2281,11 @@
       return ['bangalore-escape'];
     }
 
-    function setActiveReelIds(ids) {
+    function setActiveReelIds(ids, syncCloud = true) {
       localStorage.setItem('reelshot_active_reel_ids', JSON.stringify(ids));
+      if (syncCloud) {
+        pushTripBoardToCloud(ids);
+      }
     }
 
     // Load Master Catalog from Cloudflare R2 CDN (fallback to local/offline cache)
@@ -2201,6 +2315,13 @@
 
       // Ensure chronological ordering: newest first
       masterCatalog.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
+      // Fetch latest synced Trip Board & Saved Collections from cloud server
+      await Promise.all([
+        loadCloudCollections(),
+        loadCloudTripBoard()
+      ]);
+
       sanitizeCollectionsWithCatalog(masterCatalog);
       renderCollectionsGrid();
       await renderActiveBoard();
