@@ -3897,9 +3897,13 @@
         const totalShots = reel.total_shots || 0;
         const creatorHandle = reel.subtitle || '@creator';
         const viewsCount = reel.views || reel.view_count || 0;
-        const viewsBadgeHtml = viewsCount > 0
-          ? `<span class="reel-views-pill" title="${viewsCount.toLocaleString()} views">👁️ ${formatViews(viewsCount)}</span>`
-          : '';
+        const likesCount = reel.like_count || 0;
+        let viewsBadgeHtml = '';
+        if (viewsCount > 0) {
+          viewsBadgeHtml = `<span class="reel-views-pill" title="${viewsCount.toLocaleString()} views">👁️ ${formatViews(viewsCount)}</span>`;
+        } else if (likesCount > 0) {
+          viewsBadgeHtml = `<span class="reel-views-pill" title="${likesCount.toLocaleString()} likes">❤️ ${formatViews(likesCount)}</span>`;
+        }
         const captionText = (reel.caption && reel.caption.trim()) ? reel.caption.trim() : reel.title;
 
         item.innerHTML = `

@@ -129,8 +129,12 @@ def main():
         
         proc_dl = subprocess.run(cmd_dl, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if proc_dl.returncode != 0:
-            print(json.dumps({"status": "error", "message": f"yt-dlp download failed: {proc_dl.stderr}"}))
-            sys.exit(1)
+            print("⚠️ Anonymous download failed, retrying with Chrome browser cookies...")
+            cmd_dl_cookies = [ytdlp_bin, "--cookies-from-browser", "chrome", input_target, "-o", temp_out, "--print-json"]
+            proc_dl = subprocess.run(cmd_dl_cookies, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if proc_dl.returncode != 0:
+                print(json.dumps({"status": "error", "message": f"yt-dlp download failed: {proc_dl.stderr}"}))
+                sys.exit(1)
 
         # Parse downloaded video info
         info = {}
