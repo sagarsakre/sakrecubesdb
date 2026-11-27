@@ -442,6 +442,20 @@
       color: #fff;
       transform: scale(1.04);
     }
+    .reel-views-pill {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.9);
+      background: rgba(0, 0, 0, 0.45);
+      padding: 3px 8px;
+      border-radius: 12px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
     .reel-caption-text {
       font-size: 13px;
       color: #f1f5f9;
@@ -454,11 +468,20 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       cursor: pointer;
+      word-break: break-word;
+      white-space: pre-line;
     }
     .reel-caption-text.expanded {
-      max-height: none;
+      max-height: 40vh;
+      overflow-y: auto;
       -webkit-line-clamp: unset;
       display: block;
+      background: rgba(0, 0, 0, 0.65);
+      padding: 8px 10px;
+      border-radius: 8px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     /* Bottom Scrubber Progress Bar */
@@ -2369,6 +2392,13 @@
       return `${CDN_BASE_URL}/${path.replace(/^\/+/, '')}`;
     }
 
+    function formatViews(n) {
+      if (!n || n <= 0) return '';
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+      return n.toLocaleString();
+    }
+
     let currentReel = null;
     let masterCatalog = [];       // Master archive from server / Cloudflare R2
     let selectedLibraryIds = new Set();
@@ -3866,6 +3896,11 @@
         const thumbUrl = resolveMediaUrl(reel.thumbnail || `data/reels/${reel.id}/thumbnail.jpg`);
         const totalShots = reel.total_shots || 0;
         const creatorHandle = reel.subtitle || '@creator';
+        const viewsCount = reel.views || reel.view_count || 0;
+        const viewsBadgeHtml = viewsCount > 0
+          ? `<span class="reel-views-pill" title="${viewsCount.toLocaleString()} views">👁️ ${formatViews(viewsCount)}</span>`
+          : '';
+        const captionText = (reel.caption && reel.caption.trim()) ? reel.caption.trim() : reel.title;
 
         item.innerHTML = `
           <video
@@ -3901,12 +3936,13 @@
             <div class="reel-creator-row">
               <div class="reel-creator-avatar">@</div>
               <span class="reel-creator-name">${creatorHandle}</span>
+              ${viewsBadgeHtml}
               <span class="reel-scenes-pill" onclick="openSplitScenesFromFeed('${reel.id}')">
                 ✂️ ${totalShots} Scenes
               </span>
             </div>
             <div class="reel-caption-text" onclick="this.classList.toggle('expanded')" title="Tap to expand caption">
-              ${reel.title}
+              ${captionText}
             </div>
           </div>
 

@@ -108,6 +108,10 @@ def main():
     downloaded_temp_video = False
     shortcode = ""
     instagram_url = ""
+    desc = ""
+    full_caption = ""
+    view_count = 0
+    like_count = 0
 
     # Check if input is a URL
     if input_target.startswith("http://") or input_target.startswith("https://"):
@@ -161,6 +165,9 @@ def main():
         instagram_url = f"https://www.instagram.com/reel/{shortcode}/" if shortcode else (input_target if "instagram.com" in input_target else "")
         uploader = info.get("uploader") or info.get("channel") or info.get("uploader_id") or ""
         desc = info.get("description") or ""
+        full_caption = desc.strip()
+        view_count = int(info.get("view_count") or info.get("play_count") or 0)
+        like_count = int(info.get("like_count") or 0)
 
         caption_lines = [l.strip() for l in desc.splitlines() if l.strip() and not l.strip().startswith("#")]
         first_caption = caption_lines[0] if caption_lines else ""
@@ -320,6 +327,10 @@ def main():
         "instagram_url": instagram_url,
         "title": title,
         "subtitle": subtitle,
+        "caption": full_caption or title,
+        "views": view_count,
+        "view_count": view_count,
+        "like_count": like_count,
         "resolution": f"{target_resolution}p",
         "thumbnail": "thumbnail.jpg",
         "video": "video.mp4",
@@ -373,6 +384,10 @@ def main():
             "instagram_url": instagram_url,
             "title": title,
             "subtitle": subtitle,
+            "caption": full_caption or title,
+            "views": view_count,
+            "view_count": view_count,
+            "like_count": like_count,
             "resolution": f"{target_resolution}p",
             "thumbnail": f"data/reels/{reel_id}/thumbnail.jpg",
             "video": f"data/reels/{reel_id}/video.mp4",
