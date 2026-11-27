@@ -735,6 +735,107 @@
       color: var(--text-muted);
       font-weight: 500;
     }
+    .collection-card.is-favorite {
+      border-color: rgba(245, 158, 11, 0.45);
+    }
+    .col-fav-badge {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(8px);
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #f59e0b;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(245, 158, 11, 0.5);
+      z-index: 2;
+      pointer-events: none;
+    }
+    .col-card-menu-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 3;
+      transition: all 0.2s ease;
+      line-height: 1;
+      padding: 0;
+    }
+    .col-card-menu-btn:hover {
+      background: rgba(15, 23, 42, 0.95);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: scale(1.1);
+    }
+    .context-action-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #e2e8f0;
+    }
+    .context-action-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    .context-action-btn:active {
+      transform: scale(0.98);
+    }
+    .context-action-btn.btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.25);
+      color: #f87171;
+    }
+    .context-action-btn.btn-danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fff;
+    }
+    .col-archived-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .col-archived-toggle:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+    }
 
     /* Instagram-Style Overlay Bottom Sheet */
     .sheet-box {
@@ -1264,6 +1365,17 @@
         <div class="collections-grid-3xN" id="collections-grid">
           <!-- Injected via JavaScript (3 columns) -->
         </div>
+
+        <!-- Collapsible Archived Collections -->
+        <div id="collections-archived-wrap" style="display: none; margin-top: 14px;">
+          <button class="col-archived-toggle" onclick="toggleArchivedCollectionsSection()">
+            <span id="col-archived-toggle-text">📦 Archived Collections (0)</span>
+            <span id="col-archived-toggle-arrow" style="font-size: 11px;">▾</span>
+          </button>
+          <div class="collections-grid-3xN" id="collections-archived-grid" style="display: none; margin-top: 10px;">
+            <!-- Injected via JavaScript -->
+          </div>
+        </div>
       </div>
 
       <!-- Active Trip Board Section -->
@@ -1353,6 +1465,9 @@
         <button class="back-btn" onclick="showHomeView()">← Collections</button>
         
         <div class="detail-nav-actions">
+          <button class="btn btn-secondary" id="col-fav-toggle-btn" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="toggleFavoriteForActiveCollection()">
+            ⭐ Favorite
+          </button>
           <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="openCollectionOptionsMenu()">
             ⚙️ Manage
           </button>
@@ -1481,13 +1596,19 @@
     </div>
   </div>
 
-  <!-- Collection Options Modal (Rename / Delete) -->
+  <!-- Collection Options Modal (Rename / Archive / Delete) -->
   <div class="modal-overlay" id="collection-options-modal">
     <div class="modal-box" style="max-width: 420px;">
       <h2 class="modal-title" id="col-options-title">Collection Options</h2>
       <p class="modal-desc" id="col-options-subtitle">Manage this saved collection.</p>
       
       <div style="display: flex; flex-direction: column; gap: 10px; margin: 18px 0;">
+        <button class="btn btn-secondary" id="btn-modal-toggle-fav" style="width: 100%; text-align: left; padding: 12px;" onclick="handleModalToggleFavorite()">
+          ⭐ Add to Favorites
+        </button>
+        <button class="btn btn-secondary" id="btn-modal-toggle-archive" style="width: 100%; text-align: left; padding: 12px;" onclick="handleModalToggleArchive()">
+          📦 Archive Collection
+        </button>
         <button class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;" onclick="promptRenameCollection()">
           ✏️ Rename Collection
         </button>
@@ -1498,6 +1619,47 @@
 
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeCollectionOptionsMenu()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collection Long-Press / Context Action Sheet -->
+  <div class="modal-overlay" id="collection-context-sheet" onclick="handleCollectionContextBackdrop(event)">
+    <div class="sheet-box" onclick="event.stopPropagation()">
+      <div class="sheet-drag-handle"></div>
+      
+      <div class="sheet-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="col-context-icon" style="font-size: 16px;">📁</span>
+          <div class="sheet-title" id="col-context-title">Collection</div>
+        </div>
+        <button class="btn-sheet-close" onclick="closeCollectionContextMenu()">✕</button>
+      </div>
+
+      <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;">
+        <button class="context-action-btn" id="btn-col-toggle-fav" onclick="handleContextToggleFavorite()">
+          <span style="font-size: 16px;">⭐</span>
+          <span id="text-col-toggle-fav">Add to Favorites</span>
+        </button>
+
+        <button class="context-action-btn" id="btn-col-toggle-archive" onclick="handleContextToggleArchive()">
+          <span style="font-size: 16px;">📦</span>
+          <span id="text-col-toggle-archive">Archive Collection</span>
+        </button>
+
+        <button class="context-action-btn" onclick="handleContextRename()">
+          <span style="font-size: 16px;">✏️</span>
+          <span>Rename Collection</span>
+        </button>
+
+        <button class="context-action-btn btn-danger" onclick="handleContextDelete()">
+          <span style="font-size: 16px;">🗑️</span>
+          <span>Delete Collection</span>
+        </button>
+      </div>
+
+      <div style="padding: 10px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; background: rgba(0,0,0,0.2);">
+        <button class="btn btn-secondary" style="padding: 6px 18px; font-size: 13px; border-radius: 20px;" onclick="closeCollectionContextMenu()">Done</button>
       </div>
     </div>
   </div>
@@ -1679,7 +1841,8 @@
           await client.fetch(putUrl, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(cols, null, 2)
+            body: JSON.stringify(cols, null, 2),
+            keepalive: true
           });
           console.log('☁️ Synced collections to R2 cloud');
         } catch (e) {
@@ -1700,7 +1863,9 @@
           await client.fetch(putUrl, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(ids, null, 2)
+            body: JSON.stringify(ids, null, 2),
+            keepalive: true
+          });
           });
           console.log('☁️ Synced Trip Board to R2 cloud');
         } catch (e) {
@@ -1855,6 +2020,262 @@
       }
     }
 
+    /* ========================================================================
+       FAVORITES, SORTING & CONTEXT MENU
+       ======================================================================== */
+    function getSortedCollections(cols) {
+      return [...cols].sort((a, b) => {
+        // 1. Favorites stay pinned to the top
+        const favA = a.isFavorite === true ? 1 : 0;
+        const favB = b.isFavorite === true ? 1 : 0;
+        if (favA !== favB) return favB - favA;
+
+        // 2. Alphabetical by default (case-insensitive)
+        const nameA = (a.name || '').trim();
+        const nameB = (b.name || '').trim();
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+
+    let activeContextMenuColId = null;
+
+    function openCollectionContextMenu(colId) {
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      if (!col) return;
+
+      activeContextMenuColId = colId;
+
+      const titleEl = document.getElementById('col-context-title');
+      const favBtnText = document.getElementById('text-col-toggle-fav');
+      const archiveBtnText = document.getElementById('text-col-toggle-archive');
+      const iconEl = document.getElementById('col-context-icon');
+
+      if (titleEl) titleEl.textContent = col.name;
+      if (iconEl) iconEl.textContent = col.isFavorite ? '⭐' : (col.isArchived ? '📦' : '📁');
+      if (favBtnText) favBtnText.textContent = col.isFavorite ? 'Remove from Favorites' : 'Add to Favorites';
+      if (archiveBtnText) archiveBtnText.textContent = col.isArchived ? 'Unarchive Collection' : 'Archive Collection';
+
+      const sheet = document.getElementById('collection-context-sheet');
+      if (sheet) sheet.classList.add('active');
+    }
+
+    function closeCollectionContextMenu() {
+      const sheet = document.getElementById('collection-context-sheet');
+      if (sheet) sheet.classList.remove('active');
+      activeContextMenuColId = null;
+    }
+
+    function handleCollectionContextBackdrop(e) {
+      if (e.target && e.target.id === 'collection-context-sheet') {
+        closeCollectionContextMenu();
+      }
+    }
+
+    function handleContextToggleFavorite() {
+      if (!activeContextMenuColId) return;
+      const colId = activeContextMenuColId;
+      closeCollectionContextMenu();
+      toggleCollectionFavorite(colId);
+    }
+
+    function handleContextToggleArchive() {
+      if (!activeContextMenuColId) return;
+      const colId = activeContextMenuColId;
+      closeCollectionContextMenu();
+      toggleCollectionArchive(colId);
+    }
+
+    function handleContextRename() {
+      if (!activeContextMenuColId) return;
+      const colId = activeContextMenuColId;
+      closeCollectionContextMenu();
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      if (!col) return;
+      const newName = prompt(`Rename collection "${col.name}":`, col.name);
+      if (newName && newName.trim() && newName.trim() !== col.name) {
+        renameCollection(col.id, newName.trim());
+        renderCollectionsGrid();
+        showToast(`Renamed to "${newName.trim()}"`);
+      }
+    }
+
+    function handleContextDelete() {
+      if (!activeContextMenuColId) return;
+      const colId = activeContextMenuColId;
+      closeCollectionContextMenu();
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      if (!col) return;
+      if (confirm(`Delete the collection "${col.name}"? (Individual reels and shots in your library won't be affected)`)) {
+        deleteCollection(col.id);
+        renderCollectionsGrid();
+        showToast(`Deleted collection "${col.name}"`);
+      }
+    }
+
+    function toggleCollectionFavorite(colId) {
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      if (!col) return;
+
+      col.isFavorite = !col.isFavorite;
+      if (col.isFavorite) {
+        col.isArchived = false;
+      }
+      saveCollections(cols);
+      renderCollectionsGrid();
+      showToast(col.isFavorite ? `⭐ "${col.name}" added to Favorites` : `Removed "${col.name}" from Favorites`);
+
+      if (activeCollectionId === colId) {
+        updateActiveCollectionHeader(col);
+      }
+    }
+
+    function toggleCollectionArchive(colId) {
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      if (!col) return;
+
+      col.isArchived = !col.isArchived;
+      if (col.isArchived) {
+        col.isFavorite = false;
+      }
+      saveCollections(cols);
+      renderCollectionsGrid();
+      showToast(col.isArchived ? `📦 "${col.name}" archived` : `Unarchived "${col.name}"`);
+
+      if (activeCollectionId === colId && col.isArchived) {
+        showHomeView();
+      }
+    }
+
+    let isArchivedSectionOpen = false;
+    function toggleArchivedCollectionsSection() {
+      isArchivedSectionOpen = !isArchivedSectionOpen;
+      const grid = document.getElementById('collections-archived-grid');
+      const arrow = document.getElementById('col-archived-toggle-arrow');
+      if (grid) grid.style.display = isArchivedSectionOpen ? 'grid' : 'none';
+      if (arrow) arrow.textContent = isArchivedSectionOpen ? '▴' : '▾';
+    }
+
+    function attachLongPressHandlers(card, colId) {
+      let pressTimer = null;
+      let isLongPressTriggered = false;
+      let startX = 0;
+      let startY = 0;
+
+      function onStart(e) {
+        isLongPressTriggered = false;
+        if (e.touches && e.touches[0]) {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+        }
+        clearTimeout(pressTimer);
+        pressTimer = setTimeout(() => {
+          isLongPressTriggered = true;
+          if (navigator.vibrate) {
+            try { navigator.vibrate(40); } catch(err){}
+          }
+          openCollectionContextMenu(colId);
+        }, 450);
+      }
+
+      function onCancel() {
+        clearTimeout(pressTimer);
+      }
+
+      function onMove(e) {
+        if (e.touches && e.touches[0]) {
+          const dx = Math.abs(e.touches[0].clientX - startX);
+          const dy = Math.abs(e.touches[0].clientY - startY);
+          if (dx > 10 || dy > 10) {
+            clearTimeout(pressTimer);
+          }
+        }
+      }
+
+      card.addEventListener('touchstart', onStart, { passive: true });
+      card.addEventListener('touchend', (e) => {
+        clearTimeout(pressTimer);
+        if (isLongPressTriggered) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+      card.addEventListener('touchcancel', onCancel);
+      card.addEventListener('touchmove', onMove, { passive: true });
+
+      card.addEventListener('mousedown', (e) => {
+        if (e.button === 0) onStart(e);
+      });
+      card.addEventListener('mouseup', onCancel);
+      card.addEventListener('mouseleave', onCancel);
+
+      card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        clearTimeout(pressTimer);
+        openCollectionContextMenu(colId);
+      });
+
+      card.addEventListener('click', (e) => {
+        if (isLongPressTriggered) {
+          e.preventDefault();
+          e.stopPropagation();
+          isLongPressTriggered = false;
+          return;
+        }
+        openCollectionView(colId);
+      });
+    }
+
+    function renderCollectionCardElement(col) {
+      const card = document.createElement('div');
+      card.className = `collection-card ${col.isFavorite ? 'is-favorite' : ''}`;
+
+      const firstItem = col.items && col.items.length > 0 ? col.items[0] : null;
+      let coverHtml = '';
+
+      if (firstItem) {
+        const videoUrl = resolveMediaUrl(firstItem.basePath + firstItem.clip);
+        coverHtml = `
+          <div class="collection-cover">
+            ${col.isFavorite ? '<div class="col-fav-badge" title="Favorited">⭐</div>' : ''}
+            <button class="col-card-menu-btn" title="Options" onclick="event.stopPropagation(); openCollectionContextMenu('${col.id}')">•••</button>
+            <video class="shot-loop-video" src="${videoUrl}" muted loop autoplay playsinline preload="metadata"></video>
+          </div>
+        `;
+      } else {
+        coverHtml = `
+          <div class="collection-cover">
+            ${col.isFavorite ? '<div class="col-fav-badge" title="Favorited">⭐</div>' : ''}
+            <button class="col-card-menu-btn" title="Options" onclick="event.stopPropagation(); openCollectionContextMenu('${col.id}')">•••</button>
+            <div class="collection-cover-empty">
+              <span style="font-size: 28px;">📁</span>
+              <span style="font-size: 10px; opacity: 0.7;">Empty</span>
+            </div>
+          </div>
+        `;
+      }
+
+      const countText = col.items ? `${col.items.length} ${col.items.length === 1 ? 'clip' : 'clips'}` : '0 clips';
+
+      card.innerHTML = `
+        ${coverHtml}
+        <div class="collection-card-info">
+          <div class="collection-card-name" title="${col.name}">
+            ${col.isFavorite ? '<span style="color: #f59e0b; margin-right: 3px;">⭐</span>' : ''}${col.name}
+          </div>
+          <div class="collection-card-count">${countText}</div>
+        </div>
+      `;
+
+      attachLongPressHandlers(card, col.id);
+      return card;
+    }
+
     // Render 3xN Grid on Home Screen
     function renderCollectionsGrid() {
       const cols = getCollections();
@@ -1862,11 +2283,15 @@
       const countBadge = document.getElementById('collections-count-badge');
       if (!gridEl) return;
 
+      const sortedCols = getSortedCollections(cols);
+      const activeCols = sortedCols.filter(c => !c.isArchived);
+      const archivedCols = sortedCols.filter(c => c.isArchived === true);
+
       if (countBadge) {
-        countBadge.textContent = `${cols.length}`;
+        countBadge.textContent = `${activeCols.length}`;
       }
 
-      if (cols.length === 0) {
+      if (activeCols.length === 0 && archivedCols.length === 0) {
         gridEl.innerHTML = `
           <div style="grid-column: span 3; text-align: center; padding: 20px 14px; background: var(--card-bg); border: 1px dashed var(--border); border-radius: 12px; color: var(--text-muted); font-size: 13px;">
             <span style="font-size: 22px; display: block; margin-bottom: 6px;">🔖</span>
@@ -1874,46 +2299,34 @@
             <div style="font-size: 11px; opacity: 0.8;">Tap the bookmark icon on any split scene to save poses, drone shots, or aesthetics.</div>
           </div>
         `;
-        return;
-      }
-
-      gridEl.innerHTML = '';
-      for (const col of cols) {
-        const card = document.createElement('div');
-        card.className = 'collection-card';
-        card.onclick = () => openCollectionView(col.id);
-
-        const firstItem = col.items && col.items.length > 0 ? col.items[0] : null;
-        let coverHtml = '';
-
-        if (firstItem) {
-          const videoUrl = resolveMediaUrl(firstItem.basePath + firstItem.clip);
-          coverHtml = `
-            <div class="collection-cover">
-              <video class="shot-loop-video" src="${videoUrl}" muted loop autoplay playsinline preload="metadata"></video>
-            </div>
-          `;
-        } else {
-          coverHtml = `
-            <div class="collection-cover">
-              <div class="collection-cover-empty">
-                <span style="font-size: 28px;">📁</span>
-                <span style="font-size: 10px; opacity: 0.7;">Empty</span>
-              </div>
-            </div>
-          `;
-        }
-
-        const countText = col.items ? `${col.items.length} ${col.items.length === 1 ? 'clip' : 'clips'}` : '0 clips';
-
-        card.innerHTML = `
-          ${coverHtml}
-          <div class="collection-card-info">
-            <div class="collection-card-name" title="${col.name}">${col.name}</div>
-            <div class="collection-card-count">${countText}</div>
+      } else if (activeCols.length === 0) {
+        gridEl.innerHTML = `
+          <div style="grid-column: span 3; text-align: center; padding: 18px 14px; background: var(--card-bg); border: 1px dashed var(--border); border-radius: 12px; color: var(--text-muted); font-size: 12px;">
+            <span>All collections are archived. See below to view or restore.</span>
           </div>
         `;
-        gridEl.appendChild(card);
+      } else {
+        gridEl.innerHTML = '';
+        for (const col of activeCols) {
+          gridEl.appendChild(renderCollectionCardElement(col));
+        }
+      }
+
+      // Handle Archived Section
+      const archWrap = document.getElementById('collections-archived-wrap');
+      const archGrid = document.getElementById('collections-archived-grid');
+      const archText = document.getElementById('col-archived-toggle-text');
+      if (archWrap && archGrid) {
+        if (archivedCols.length > 0) {
+          archWrap.style.display = 'block';
+          if (archText) archText.textContent = `📦 Archived Collections (${archivedCols.length})`;
+          archGrid.innerHTML = '';
+          for (const col of archivedCols) {
+            archGrid.appendChild(renderCollectionCardElement(col));
+          }
+        } else {
+          archWrap.style.display = 'none';
+        }
       }
 
       setupVideoObserver();
@@ -2131,6 +2544,7 @@
       document.getElementById('col-view-title').textContent = col.name;
       const count = (col.items || []).length;
       document.getElementById('col-view-count').textContent = `${count} ${count === 1 ? 'clip' : 'clips'}`;
+      updateActiveCollectionHeader(col);
 
       renderCollectionShots(col);
 
@@ -2228,6 +2642,28 @@
       }
     }
 
+    function updateActiveCollectionHeader(col) {
+      const favBtn = document.getElementById('col-fav-toggle-btn');
+      if (favBtn) {
+        if (col.isFavorite) {
+          favBtn.innerHTML = '⭐ Favorited';
+          favBtn.style.color = '#f59e0b';
+          favBtn.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+          favBtn.style.background = 'rgba(245, 158, 11, 0.12)';
+        } else {
+          favBtn.innerHTML = '☆ Favorite';
+          favBtn.style.color = 'var(--text-muted)';
+          favBtn.style.borderColor = 'var(--border)';
+          favBtn.style.background = 'transparent';
+        }
+      }
+    }
+
+    function toggleFavoriteForActiveCollection() {
+      if (!activeCollectionId) return;
+      toggleCollectionFavorite(activeCollectionId);
+    }
+
     function openCollectionOptionsMenu() {
       if (!activeCollectionId) return;
       const cols = getCollections();
@@ -2235,7 +2671,24 @@
       if (!col) return;
 
       document.getElementById('col-options-title').textContent = `Manage: ${col.name}`;
+      const favBtn = document.getElementById('btn-modal-toggle-fav');
+      const archBtn = document.getElementById('btn-modal-toggle-archive');
+      if (favBtn) favBtn.textContent = col.isFavorite ? '⭐ Remove from Favorites' : '⭐ Add to Favorites';
+      if (archBtn) archBtn.textContent = col.isArchived ? '📦 Unarchive Collection' : '📦 Archive Collection';
+
       document.getElementById('collection-options-modal').classList.add('active');
+    }
+
+    function handleModalToggleFavorite() {
+      if (!activeCollectionId) return;
+      closeCollectionOptionsMenu();
+      toggleCollectionFavorite(activeCollectionId);
+    }
+
+    function handleModalToggleArchive() {
+      if (!activeCollectionId) return;
+      closeCollectionOptionsMenu();
+      toggleCollectionArchive(activeCollectionId);
     }
 
     function closeCollectionOptionsMenu() {
