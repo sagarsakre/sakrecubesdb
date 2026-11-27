@@ -13,6 +13,9 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#080c14">
 
+  <!-- Material Symbols -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
   <style>
     :root {
       --bg: #080c14;
@@ -735,25 +738,30 @@
       color: var(--text-muted);
       font-weight: 500;
     }
+    .material-symbols-rounded {
+      font-family: 'Material Symbols Rounded', sans-serif;
+      font-weight: normal;
+      font-style: normal;
+      font-size: 20px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+      font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+    }
     .collection-card.is-favorite {
       border-color: rgba(245, 158, 11, 0.45);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.12);
     }
-    .col-fav-badge {
+    .col-fav-indicator {
       position: absolute;
       top: 6px;
       left: 6px;
-      background: rgba(15, 23, 42, 0.88);
-      backdrop-filter: blur(8px);
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
       color: #f59e0b;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(245, 158, 11, 0.5);
+      filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
       z-index: 2;
       pointer-events: none;
     }
@@ -1465,8 +1473,11 @@
         <button class="back-btn" onclick="showHomeView()">← Collections</button>
         
         <div class="detail-nav-actions">
-          <button class="btn btn-secondary" id="col-fav-toggle-btn" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="toggleFavoriteForActiveCollection()">
-            ⭐ Favorite
+          <button class="btn btn-secondary" id="col-fav-toggle-btn" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;" onclick="toggleFavoriteForActiveCollection()">
+            <svg id="col-fav-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <span id="col-fav-btn-text">Favorite</span>
           </button>
           <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="openCollectionOptionsMenu()">
             ⚙️ Manage
@@ -1603,17 +1614,33 @@
       <p class="modal-desc" id="col-options-subtitle">Manage this saved collection.</p>
       
       <div style="display: flex; flex-direction: column; gap: 10px; margin: 18px 0;">
-        <button class="btn btn-secondary" id="btn-modal-toggle-fav" style="width: 100%; text-align: left; padding: 12px;" onclick="handleModalToggleFavorite()">
-          ⭐ Add to Favorites
+        <button class="btn btn-secondary" id="btn-modal-toggle-fav" style="width: 100%; text-align: left; padding: 12px; display: flex; align-items: center; gap: 10px;" onclick="handleModalToggleFavorite()">
+          <span id="modal-fav-icon-slot" style="display: flex; align-items: center;"></span>
+          <span id="text-modal-toggle-fav">Add to Favorites</span>
         </button>
-        <button class="btn btn-secondary" id="btn-modal-toggle-archive" style="width: 100%; text-align: left; padding: 12px;" onclick="handleModalToggleArchive()">
-          📦 Archive Collection
+        <button class="btn btn-secondary" id="btn-modal-toggle-archive" style="width: 100%; text-align: left; padding: 12px; display: flex; align-items: center; gap: 10px;" onclick="handleModalToggleArchive()">
+          <span id="modal-archive-icon-slot" style="display: flex; align-items: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line>
+            </svg>
+          </span>
+          <span id="text-modal-toggle-archive">Archive Collection</span>
         </button>
-        <button class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;" onclick="promptRenameCollection()">
-          ✏️ Rename Collection
+        <button class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px; display: flex; align-items: center; gap: 10px;" onclick="promptRenameCollection()">
+          <span style="display: flex; align-items: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+          </span>
+          <span>Rename Collection</span>
         </button>
-        <button class="btn btn-danger" style="width: 100%; text-align: left; padding: 12px;" onclick="confirmDeleteCollection()">
-          🗑️ Delete Collection
+        <button class="btn btn-danger" style="width: 100%; text-align: left; padding: 12px; display: flex; align-items: center; gap: 10px;" onclick="confirmDeleteCollection()">
+          <span style="display: flex; align-items: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </span>
+          <span>Delete Collection</span>
         </button>
       </div>
 
@@ -1630,7 +1657,7 @@
       
       <div class="sheet-header">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span id="col-context-icon" style="font-size: 16px;">📁</span>
+          <span id="col-context-icon" style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px;"></span>
           <div class="sheet-title" id="col-context-title">Collection</div>
         </div>
         <button class="btn-sheet-close" onclick="closeCollectionContextMenu()">✕</button>
@@ -1638,22 +1665,34 @@
 
       <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;">
         <button class="context-action-btn" id="btn-col-toggle-fav" onclick="handleContextToggleFavorite()">
-          <span style="font-size: 16px;">⭐</span>
+          <span id="ctx-fav-icon-slot" style="display: flex; align-items: center; justify-content: center; width: 22px;"></span>
           <span id="text-col-toggle-fav">Add to Favorites</span>
         </button>
 
         <button class="context-action-btn" id="btn-col-toggle-archive" onclick="handleContextToggleArchive()">
-          <span style="font-size: 16px;">📦</span>
+          <span style="display: flex; align-items: center; justify-content: center; width: 22px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line>
+            </svg>
+          </span>
           <span id="text-col-toggle-archive">Archive Collection</span>
         </button>
 
         <button class="context-action-btn" onclick="handleContextRename()">
-          <span style="font-size: 16px;">✏️</span>
+          <span style="display: flex; align-items: center; justify-content: center; width: 22px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+          </span>
           <span>Rename Collection</span>
         </button>
 
         <button class="context-action-btn btn-danger" onclick="handleContextDelete()">
-          <span style="font-size: 16px;">🗑️</span>
+          <span style="display: flex; align-items: center; justify-content: center; width: 22px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </span>
           <span>Delete Collection</span>
         </button>
       </div>
@@ -1866,7 +1905,6 @@
             body: JSON.stringify(ids, null, 2),
             keepalive: true
           });
-          });
           console.log('☁️ Synced Trip Board to R2 cloud');
         } catch (e) {
           console.warn('Cloud sync error (trip board):', e);
@@ -2023,6 +2061,10 @@
     /* ========================================================================
        FAVORITES, SORTING & CONTEXT MENU
        ======================================================================== */
+    const MAT_STAR_FILLED_PATH = 'm12 17.27 4.15 2.51c.76.46 1.69-.22 1.49-1.08l-1.1-4.72 3.67-3.18c.67-.58.31-1.68-.57-1.75l-4.83-.41-1.89-4.46c-.34-.81-1.5-.81-1.84 0L9.19 8.63l-4.83.41c-.88.07-1.24 1.17-.57 1.75l3.67 3.18-1.1 4.72c-.2.86.73 1.54 1.49 1.08l4.15-2.5z';
+    const MAT_STAR_FILLED_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#f59e0b" style="display:block;"><path d="${MAT_STAR_FILLED_PATH}"/></svg>`;
+    const MAT_STAR_OUTLINE_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+
     function getSortedCollections(cols) {
       return [...cols].sort((a, b) => {
         // 1. Favorites stay pinned to the top
@@ -2048,11 +2090,23 @@
 
       const titleEl = document.getElementById('col-context-title');
       const favBtnText = document.getElementById('text-col-toggle-fav');
+      const favIconSlot = document.getElementById('ctx-fav-icon-slot');
       const archiveBtnText = document.getElementById('text-col-toggle-archive');
       const iconEl = document.getElementById('col-context-icon');
 
       if (titleEl) titleEl.textContent = col.name;
-      if (iconEl) iconEl.textContent = col.isFavorite ? '⭐' : (col.isArchived ? '📦' : '📁');
+      if (iconEl) {
+        if (col.isFavorite) {
+          iconEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b"><path d="${MAT_STAR_FILLED_PATH}"/></svg>`;
+        } else if (col.isArchived) {
+          iconEl.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>`;
+        } else {
+          iconEl.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
+        }
+      }
+      if (favIconSlot) {
+        favIconSlot.innerHTML = col.isFavorite ? MAT_STAR_FILLED_SVG : MAT_STAR_OUTLINE_SVG;
+      }
       if (favBtnText) favBtnText.textContent = col.isFavorite ? 'Remove from Favorites' : 'Add to Favorites';
       if (archiveBtnText) archiveBtnText.textContent = col.isArchived ? 'Unarchive Collection' : 'Archive Collection';
 
@@ -2126,7 +2180,7 @@
       }
       saveCollections(cols);
       renderCollectionsGrid();
-      showToast(col.isFavorite ? `⭐ "${col.name}" added to Favorites` : `Removed "${col.name}" from Favorites`);
+      showToast(col.isFavorite ? `"${col.name}" added to Favorites` : `Removed "${col.name}" from Favorites`);
 
       if (activeCollectionId === colId) {
         updateActiveCollectionHeader(col);
@@ -2238,11 +2292,19 @@
       const firstItem = col.items && col.items.length > 0 ? col.items[0] : null;
       let coverHtml = '';
 
+      const favIndicatorHtml = col.isFavorite
+        ? `<div class="col-fav-indicator" title="Favorited">
+             <svg width="18" height="18" viewBox="0 0 24 24" fill="#f59e0b">
+               <path d="${MAT_STAR_FILLED_PATH}"/>
+             </svg>
+           </div>`
+        : '';
+
       if (firstItem) {
         const videoUrl = resolveMediaUrl(firstItem.basePath + firstItem.clip);
         coverHtml = `
           <div class="collection-cover">
-            ${col.isFavorite ? '<div class="col-fav-badge" title="Favorited">⭐</div>' : ''}
+            ${favIndicatorHtml}
             <button class="col-card-menu-btn" title="Options" onclick="event.stopPropagation(); openCollectionContextMenu('${col.id}')">•••</button>
             <video class="shot-loop-video" src="${videoUrl}" muted loop autoplay playsinline preload="metadata"></video>
           </div>
@@ -2250,7 +2312,7 @@
       } else {
         coverHtml = `
           <div class="collection-cover">
-            ${col.isFavorite ? '<div class="col-fav-badge" title="Favorited">⭐</div>' : ''}
+            ${favIndicatorHtml}
             <button class="col-card-menu-btn" title="Options" onclick="event.stopPropagation(); openCollectionContextMenu('${col.id}')">•••</button>
             <div class="collection-cover-empty">
               <span style="font-size: 28px;">📁</span>
@@ -2262,11 +2324,15 @@
 
       const countText = col.items ? `${col.items.length} ${col.items.length === 1 ? 'clip' : 'clips'}` : '0 clips';
 
+      const titleFavStar = col.isFavorite
+        ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b" style="margin-right: 4px; vertical-align: -1px; flex-shrink: 0;"><path d="${MAT_STAR_FILLED_PATH}"/></svg>`
+        : '';
+
       card.innerHTML = `
         ${coverHtml}
         <div class="collection-card-info">
           <div class="collection-card-name" title="${col.name}">
-            ${col.isFavorite ? '<span style="color: #f59e0b; margin-right: 3px;">⭐</span>' : ''}${col.name}
+            ${titleFavStar}${col.name}
           </div>
           <div class="collection-card-count">${countText}</div>
         </div>
@@ -2644,18 +2710,30 @@
 
     function updateActiveCollectionHeader(col) {
       const favBtn = document.getElementById('col-fav-toggle-btn');
-      if (favBtn) {
-        if (col.isFavorite) {
-          favBtn.innerHTML = '⭐ Favorited';
-          favBtn.style.color = '#f59e0b';
-          favBtn.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-          favBtn.style.background = 'rgba(245, 158, 11, 0.12)';
-        } else {
-          favBtn.innerHTML = '☆ Favorite';
-          favBtn.style.color = 'var(--text-muted)';
-          favBtn.style.borderColor = 'var(--border)';
-          favBtn.style.background = 'transparent';
+      const favIcon = document.getElementById('col-fav-btn-icon');
+      const favText = document.getElementById('col-fav-btn-text');
+      if (!favBtn) return;
+
+      if (col.isFavorite) {
+        favBtn.style.color = '#f59e0b';
+        favBtn.style.borderColor = 'rgba(245, 158, 11, 0.45)';
+        favBtn.style.background = 'rgba(245, 158, 11, 0.12)';
+        if (favIcon) {
+          favIcon.setAttribute('fill', '#f59e0b');
+          favIcon.setAttribute('stroke', 'none');
+          favIcon.innerHTML = `<path d="${MAT_STAR_FILLED_PATH}"/>`;
         }
+        if (favText) favText.textContent = 'Favorited';
+      } else {
+        favBtn.style.color = 'var(--text-muted)';
+        favBtn.style.borderColor = 'var(--border)';
+        favBtn.style.background = 'transparent';
+        if (favIcon) {
+          favIcon.setAttribute('fill', 'none');
+          favIcon.setAttribute('stroke', 'currentColor');
+          favIcon.innerHTML = '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>';
+        }
+        if (favText) favText.textContent = 'Favorite';
       }
     }
 
@@ -2671,10 +2749,15 @@
       if (!col) return;
 
       document.getElementById('col-options-title').textContent = `Manage: ${col.name}`;
-      const favBtn = document.getElementById('btn-modal-toggle-fav');
-      const archBtn = document.getElementById('btn-modal-toggle-archive');
-      if (favBtn) favBtn.textContent = col.isFavorite ? '⭐ Remove from Favorites' : '⭐ Add to Favorites';
-      if (archBtn) archBtn.textContent = col.isArchived ? '📦 Unarchive Collection' : '📦 Archive Collection';
+      const favIconSlot = document.getElementById('modal-fav-icon-slot');
+      const favText = document.getElementById('text-modal-toggle-fav');
+      const archText = document.getElementById('text-modal-toggle-archive');
+
+      if (favIconSlot) {
+        favIconSlot.innerHTML = col.isFavorite ? MAT_STAR_FILLED_SVG : MAT_STAR_OUTLINE_SVG;
+      }
+      if (favText) favText.textContent = col.isFavorite ? 'Remove from Favorites' : 'Add to Favorites';
+      if (archText) archText.textContent = col.isArchived ? 'Unarchive Collection' : 'Archive Collection';
 
       document.getElementById('collection-options-modal').classList.add('active');
     }
