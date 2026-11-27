@@ -2839,12 +2839,16 @@
         : '';
 
       if (firstItem) {
-        const videoUrl = resolveMediaUrl(firstItem.basePath + firstItem.clip);
+        const parentReel = masterCatalog.find(r => r.id === firstItem.reelId);
+        const thumbPath = (parentReel && parentReel.thumbnail)
+          ? parentReel.thumbnail
+          : (firstItem.basePath ? (firstItem.basePath.replace(/\/+$/, '') + '/thumbnail.jpg') : `data/reels/${firstItem.reelId}/thumbnail.jpg`);
+        const thumbUrl = resolveMediaUrl(thumbPath);
         coverHtml = `
           <div class="collection-cover">
             ${favIndicatorHtml}
             <button class="col-card-menu-btn" title="Options" onclick="event.stopPropagation(); openCollectionContextMenu('${col.id}')">•••</button>
-            <video class="shot-loop-video" src="${videoUrl}" muted loop autoplay playsinline preload="metadata"></video>
+            <img class="collection-cover-img" id="col-thumb-${col.id}" src="${thumbUrl}" alt="${col.name}" loading="lazy">
           </div>
         `;
       } else {
@@ -2875,6 +2879,20 @@
           <div class="collection-card-count">${countText}</div>
         </div>
       `;
+
+      if (firstItem) {
+        const parentReel = masterCatalog.find(r => r.id === firstItem.reelId);
+        const thumbPath = (parentReel && parentReel.thumbnail)
+          ? parentReel.thumbnail
+          : (firstItem.basePath ? (firstItem.basePath.replace(/\/+$/, '') + '/thumbnail.jpg') : `data/reels/${firstItem.reelId}/thumbnail.jpg`);
+        const thumbUrl = resolveMediaUrl(thumbPath);
+        getMediaBlob(thumbUrl).then(blob => {
+          if (blob) {
+            const img = card.querySelector(`#col-thumb-${col.id}`);
+            if (img) img.src = URL.createObjectURL(blob);
+          }
+        });
+      }
 
       attachLongPressHandlers(card, col.id);
       return card;
@@ -3042,8 +3060,12 @@
 
         let thumbHtml = '';
         if (firstItem) {
-          const vUrl = resolveMediaUrl(firstItem.basePath + firstItem.clip);
-          thumbHtml = `<video src="${vUrl}" muted loop autoplay playsinline preload="metadata"></video>`;
+          const parentReel = masterCatalog.find(r => r.id === firstItem.reelId);
+          const thumbPath = (parentReel && parentReel.thumbnail)
+            ? parentReel.thumbnail
+            : (firstItem.basePath ? (firstItem.basePath.replace(/\/+$/, '') + '/thumbnail.jpg') : `data/reels/${firstItem.reelId}/thumbnail.jpg`);
+          const thumbUrl = resolveMediaUrl(thumbPath);
+          thumbHtml = `<img id="sheet-col-thumb-${col.id}" src="${thumbUrl}" alt="${col.name}" loading="lazy">`;
         } else {
           thumbHtml = `<span>📁</span>`;
         }
@@ -3066,6 +3088,20 @@
             ✓
           </div>
         `;
+
+        if (firstItem) {
+          const parentReel = masterCatalog.find(r => r.id === firstItem.reelId);
+          const thumbPath = (parentReel && parentReel.thumbnail)
+            ? parentReel.thumbnail
+            : (firstItem.basePath ? (firstItem.basePath.replace(/\/+$/, '') + '/thumbnail.jpg') : `data/reels/${firstItem.reelId}/thumbnail.jpg`);
+          const thumbUrl = resolveMediaUrl(thumbPath);
+          getMediaBlob(thumbUrl).then(blob => {
+            if (blob) {
+              const img = row.querySelector(`#sheet-col-thumb-${col.id}`);
+              if (img) img.src = URL.createObjectURL(blob);
+            }
+          });
+        }
         container.appendChild(row);
       }
     }
