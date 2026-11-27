@@ -106,6 +106,8 @@ def main():
 
     input_target = args.input
     downloaded_temp_video = False
+    shortcode = ""
+    instagram_url = ""
 
     # Check if input is a URL
     if input_target.startswith("http://") or input_target.startswith("https://"):
@@ -155,6 +157,8 @@ def main():
 
         downloaded_temp_video = True
         unique_id = info.get("id") or extract_reel_shortcode(input_target)
+        shortcode = unique_id or ""
+        instagram_url = f"https://www.instagram.com/reel/{shortcode}/" if shortcode else (input_target if "instagram.com" in input_target else "")
         uploader = info.get("uploader") or info.get("channel") or info.get("uploader_id") or ""
         desc = info.get("description") or ""
 
@@ -312,6 +316,8 @@ def main():
 
     reel_data = {
         "id": reel_id,
+        "shortcode": shortcode,
+        "instagram_url": instagram_url,
         "title": title,
         "subtitle": subtitle,
         "resolution": f"{target_resolution}p",
@@ -363,6 +369,8 @@ def main():
         catalog_list = [r for r in catalog_list if r.get("id") != reel_id]
         catalog_list.insert(0, {
             "id": reel_id,
+            "shortcode": shortcode,
+            "instagram_url": instagram_url,
             "title": title,
             "subtitle": subtitle,
             "resolution": f"{target_resolution}p",
