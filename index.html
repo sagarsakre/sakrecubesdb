@@ -236,6 +236,8 @@
       background: #020408;
       overflow: hidden;
       user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
       touch-action: pan-y;
     }
 
@@ -246,6 +248,9 @@
       display: block;
       background: #000;
       pointer-events: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     /* Floating Top Controls on Feed */
@@ -3533,7 +3538,12 @@
         entries.forEach(entry => {
           const video = entry.target.querySelector('video');
           const reelId = entry.target.dataset.reelId;
+          const badge = entry.target.querySelector('.reel-2x-badge');
           if (!video) return;
+
+          // Always ensure any video resets to 1.0x normal speed when scrolling
+          video.playbackRate = 1.0;
+          if (badge) badge.style.display = 'none';
 
           if (entry.isIntersecting) {
             currentVisibleFeedReelId = reelId;
@@ -3561,7 +3571,45 @@
       document.querySelectorAll('.reel-feed-item').forEach(el => {
         feedVideoObserver.observe(el);
       });
+
+      // Clear any 2x state when user scrolls the feed
+      container.addEventListener('scroll', () => {
+        document.querySelectorAll('#view-feed video').forEach(v => {
+          if (v.playbackRate !== 1.0) v.playbackRate = 1.0;
+        });
+        document.querySelectorAll('.reel-2x-badge').forEach(b => {
+          b.style.display = 'none';
+        });
+      }, { passive: true });
     }
+
+    // Window safety listeners to ensure 2x speed is ALWAYS restored to 1.0x on release
+    window.addEventListener('mouseup', () => {
+      document.querySelectorAll('#view-feed video').forEach(v => {
+        if (v.playbackRate !== 1.0) v.playbackRate = 1.0;
+      });
+      document.querySelectorAll('.reel-2x-badge').forEach(b => {
+        b.style.display = 'none';
+      });
+    });
+    window.addEventListener('touchend', () => {
+      setTimeout(() => {
+        document.querySelectorAll('#view-feed video').forEach(v => {
+          if (v.playbackRate !== 1.0) v.playbackRate = 1.0;
+        });
+        document.querySelectorAll('.reel-2x-badge').forEach(b => {
+          b.style.display = 'none';
+        });
+      }, 40);
+    }, { passive: true });
+    window.addEventListener('touchcancel', () => {
+      document.querySelectorAll('#view-feed video').forEach(v => {
+        if (v.playbackRate !== 1.0) v.playbackRate = 1.0;
+      });
+      document.querySelectorAll('.reel-2x-badge').forEach(b => {
+        b.style.display = 'none';
+      });
+    }, { passive: true });
 
     function attachReelFeedGestures(card, reel) {
       const video = card.querySelector('video');
@@ -3598,10 +3646,12 @@
           clearTimeout(longPressTimer);
           longPressTimer = null;
         }
-        if (is2xActive && video) {
-          is2xActive = false;
+        is2xActive = false;
+        if (video) {
           video.playbackRate = 1.0;
-          if (badge2x) badge2x.style.display = 'none';
+        }
+        if (badge2x) {
+          badge2x.style.display = 'none';
         }
       }
 
@@ -3625,6 +3675,7 @@
         }
       }
 
+      // Touch Events for Mobile (iPhone / Android)
       card.addEventListener('touchstart', (e) => {
         if (e.target.closest('.reel-feed-top-controls') || e.target.closest('.reel-overlay-bottom') || e.target.closest('.reel-swipe-hint')) {
           return;
@@ -3636,21 +3687,19 @@
         hasMoved = false;
         is2xActive = false;
 
+        if (longPressTimer) clearTimeout(longPressTimer);
         longPressTimer = setTimeout(() => {
           if (!hasMoved) start2x();
-        }, 320);
+        }, 280);
       }, { passive: true });
 
       card.addEventListener('touchmove', (e) => {
         const t = e.touches[0];
         const dx = t.clientX - startX;
         const dy = t.clientY - startY;
-        if (Math.hypot(dx, dy) > 10) {
+        if (Math.hypot(dx, dy) > 8) {
           hasMoved = true;
-          if (!is2xActive && longPressTimer) {
-            clearTimeout(longPressTimer);
-            longPressTimer = null;
-          }
+          stop2x();
         }
       }, { passive: true });
 
@@ -3660,14 +3709,12 @@
         const dx = t ? t.clientX - startX : 0;
         const dy = t ? t.clientY - startY : 0;
 
-        if (is2xActive) {
-          stop2x();
-          return;
-        }
+        const was2x = is2xActive;
+        stop2x();
 
-        if (longPressTimer) {
-          clearTimeout(longPressTimer);
-          longPressTimer = null;
+        // If user was holding 2x speed, releasing only restores 1x and does not play/pause
+        if (was2x) {
+          return;
         }
 
         // Swipe Left: deltaX < -65px and horizontal dominates
@@ -3676,10 +3723,14 @@
           return;
         }
 
-        // Single Tap
-        if (!hasMoved && elapsed < 320) {
+        // Quick Single Tap
+        if (!hasMoved && elapsed < 300) {
           togglePlayPause();
         }
+      });
+
+      card.addEventListener('touchcancel', () => {
+        stop2x();
       });
 
       // Desktop Click & Hold Support
@@ -3694,18 +3745,49 @@
         hasMoved = false;
         is2xActive = false;
 
+        if (longPressTimer) clearTimeout(longPressTimer);
         longPressTimer = setTimeout(() => {
           if (!hasMoved) start2x();
-        }, 320);
+        }, 280);
       });
 
-      card.addEventListener('click', (e) => {
+      card.addEventListener('mousemove', (e) => {
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) {
+          hasMoved = true;
+          if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+          }
+          if (is2xActive) {
+            stop2x();
+          }
+        }
+      });
+
+      card.addEventListener('mouseup', (e) => {
+        if (e.button !== 0) return;
         if (e.target.closest('.reel-feed-top-controls') || e.target.closest('.reel-overlay-bottom') || e.target.closest('.reel-swipe-hint')) {
           return;
         }
-        if (!hasMoved && Date.now() - startTime < 320 && !is2xActive) {
+        const was2x = is2xActive;
+        stop2x();
+
+        if (was2x) {
+          return;
+        }
+
+        if (!hasMoved && Date.now() - startTime < 300) {
           togglePlayPause();
         }
+      });
+
+      card.addEventListener('mouseleave', () => {
+        stop2x();
+      });
+
+      card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        stop2x();
       });
     }
 
