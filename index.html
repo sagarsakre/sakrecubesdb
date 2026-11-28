@@ -2842,6 +2842,77 @@
       return getActiveReelIds();
     }
 
+    // Debounced Cloud Sync for Checkmarks (Shot / Photo tick progress)
+    const CHECKS_MAP_KEY = 'reelshot_checks_map';
+    function getChecksMap() {
+      let map = {};
+      try {
+        map = JSON.parse(localStorage.getItem(CHECKS_MAP_KEY) || '{}') || {};
+      } catch (e) {
+        map = {};
+      }
+      // Migrate any legacy per-reel localStorage keys into the unified map
+      let migrated = false;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('reelshot_checks_') && k !== CHECKS_MAP_KEY) {
+          const rid = k.slice('reelshot_checks_'.length);
+          if (!map[rid]) {
+            try {
+              const arr = JSON.parse(localStorage.getItem(k) || '[]');
+              if (Array.isArray(arr) && arr.length > 0) {
+                map[rid] = arr;
+                migrated = true;
+              }
+            } catch (e) {}
+          }
+        }
+      }
+      if (migrated) {
+        localStorage.setItem(CHECKS_MAP_KEY, JSON.stringify(map));
+      }
+      return map;
+    }
+
+    let checksSyncTimer = null;
+    function pushChecksToCloud(map) {
+      if (IS_LOCAL_DEV) return;
+      clearTimeout(checksSyncTimer);
+      checksSyncTimer = setTimeout(async () => {
+        try {
+          const client = await getR2Client();
+          if (!client) return;
+          const putUrl = `${R2_ENDPOINT}/${R2_BUCKET}/data/checks.json`;
+          await client.fetch(putUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(map, null, 2),
+            keepalive: true
+          });
+          console.log('☁️ Synced checkmarks to R2 cloud');
+        } catch (e) {
+          console.warn('Cloud sync error (checks):', e);
+        }
+      }, 300);
+    }
+
+    async function loadCloudChecks() {
+      try {
+        const cacheBuster = '?t=' + Date.now();
+        const res = await fetch(resolveMediaUrl('data/checks.json') + cacheBuster, { cache: 'no-store' });
+        if (res.ok) {
+          const serverMap = await res.json();
+          if (serverMap && typeof serverMap === 'object' && !Array.isArray(serverMap)) {
+            localStorage.setItem(CHECKS_MAP_KEY, JSON.stringify(serverMap));
+            return serverMap;
+          }
+        }
+      } catch (err) {
+        console.warn('Using local cached checkmarks (offline):', err);
+      }
+      return getChecksMap();
+    }
+
     /* ========================================================================
        SAVED COLLECTIONS (INSTAGRAM-STYLE AGGREGATION ACROSS REELS)
        ======================================================================== */
@@ -3814,10 +3885,11 @@
       masterCatalog.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
 
       if (!IS_LOCAL_DEV) {
-        // Fetch latest synced Trip Board & Saved Collections from cloud server
+        // Fetch latest synced Trip Board, Saved Collections, and Checkmarks from cloud server
         await Promise.all([
           loadCloudCollections(),
-          loadCloudTripBoard()
+          loadCloudTripBoard(),
+          loadCloudChecks()
         ]);
       }
 
@@ -4646,7 +4718,6 @@
       if (activeIds.includes(reelId)) {
         activeIds = activeIds.filter(id => id !== reelId);
         await purgeReelMedia(reelId);
-        localStorage.removeItem(`reelshot_checks_${reelId}`);
         setActiveReelIds(activeIds);
         await renderActiveBoard();
         showToast('Removed from Trip Board');
@@ -5300,7 +5371,7 @@
         card.classList.remove('completed');
         card.classList.remove('animating-out');
         card.style.order = '0';
-        localStorage.setItem(`reelshot_checks_${currentReel.id}`, JSON.stringify(updated));
+        setCheckedShots(currentReel.id, updated);
         updateProgress();
       } else {
         card.classList.add('animating-out');
@@ -5309,14 +5380,29 @@
           card.classList.remove('animating-out');
           card.classList.add('completed');
           card.style.order = '1';
-          localStorage.setItem(`reelshot_checks_${currentReel.id}`, JSON.stringify(updated));
+          setCheckedShots(currentReel.id, updated);
           updateProgress();
         }, 340);
       }
     }
 
     function getCheckedShots(reelId) {
-      return JSON.parse(localStorage.getItem(`reelshot_checks_${reelId}`) || '[]');
+      const map = getChecksMap();
+      return Array.isArray(map[reelId]) ? map[reelId] : [];
+    }
+
+    function setCheckedShots(reelId, arr, syncCloud = true) {
+      const map = getChecksMap();
+      if (arr && arr.length > 0) {
+        map[reelId] = arr;
+      } else {
+        delete map[reelId];
+      }
+      localStorage.setItem(CHECKS_MAP_KEY, JSON.stringify(map));
+      localStorage.setItem(`reelshot_checks_${reelId}`, JSON.stringify(arr || []));
+      if (syncCloud) {
+        pushChecksToCloud(map);
+      }
     }
 
     function updateProgress() {
@@ -5368,14 +5454,18 @@
 
       const reelId = currentReel.id;
 
-      // 1. Purge phone storage
+      // 1. Purge phone storage (preserve checkmarks across add/remove)
       await purgeReelMedia(reelId);
-      localStorage.removeItem(`reelshot_checks_${reelId}`);
 
       // 2. Remove from active board
       let activeIds = getActiveReelIds();
+      const matching = masterCatalog.filter(r => activeIds.includes(r.id));
+      if (matching.length === 0 && masterCatalog.length > 0) {
+        activeIds = masterCatalog.map(r => r.id);
+      }
       activeIds = activeIds.filter(id => id !== reelId);
       setActiveReelIds(activeIds);
+      await renderActiveBoard();
 
       closeOptionsModal();
       showToast(`Removed "${title}" from Trip Board`);
@@ -5384,7 +5474,7 @@
 
     function resetChecksForCurrentReel() {
       if (!currentReel) return;
-      localStorage.removeItem(`reelshot_checks_${currentReel.id}`);
+      setCheckedShots(currentReel.id, []);
       renderShots(currentReel);
       updateProgress();
       closeOptionsModal();
