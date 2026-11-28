@@ -1987,6 +1987,88 @@
       border-radius: 50%;
       background: var(--success);
     }
+
+    /* Global Trip Board Offline Sync Button (Header) */
+    .board-sync-btn {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #e2e8f0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: all 0.2s ease;
+    }
+    .board-sync-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      transform: scale(1.06);
+    }
+    .board-sync-btn.state-synced {
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.4);
+      background: rgba(52, 211, 153, 0.12);
+    }
+    .board-sync-btn.state-needs-sync {
+      color: #fbbf24;
+      border-color: rgba(251, 191, 36, 0.45);
+      background: rgba(251, 191, 36, 0.14);
+    }
+    .board-sync-btn.state-downloading {
+      border-color: transparent;
+      background: rgba(15, 23, 42, 0.7);
+    }
+    .board-sync-ring {
+      position: absolute;
+      inset: 0;
+      width: 36px;
+      height: 36px;
+      transform: rotate(-90deg);
+      pointer-events: none;
+      display: none;
+    }
+    .board-sync-btn.state-downloading .board-sync-ring {
+      display: block;
+    }
+    .board-sync-ring-fill {
+      stroke: #38bdf8;
+      stroke-dasharray: 94.25;
+      stroke-dashoffset: 94.25;
+      transition: stroke-dashoffset 0.2s linear;
+    }
+    .board-sync-counter {
+      font-size: 9px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+    .sync-summary-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sync-summary-main {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sync-summary-sub {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
   </style>
 </head>
 <body>
@@ -2025,6 +2107,13 @@
 
       <!-- Right Header Actions -->
       <div class="header-right-actions">
+        <button class="board-sync-btn" id="board-sync-btn" onclick="openBoardSyncSheet()" title="Offline Trip Board Sync">
+          <svg class="board-sync-ring" viewBox="0 0 36 36">
+            <circle stroke="rgba(255,255,255,0.14)" stroke-width="2.5" fill="transparent" r="15" cx="18" cy="18"></circle>
+            <circle class="board-sync-ring-fill" id="board-sync-ring-fill" stroke-width="2.5" stroke-linecap="round" fill="transparent" r="15" cx="18" cy="18"></circle>
+          </svg>
+          <span id="board-sync-inner" class="material-symbols-rounded" style="font-size: 20px;">download</span>
+        </button>
         <button class="header-icon-btn" onclick="openLibraryModal()" title="Browse Master Library">
           📚
         </button>
@@ -2091,19 +2180,8 @@
         <button class="back-btn" onclick="showHomeView()">← Trip Board</button>
         
         <div class="detail-nav-actions">
-          <!-- Size Badge: Shows MB next to download button, or offline indicator when downloaded -->
+          <!-- Size Badge: Shows MB or offline indicator when downloaded -->
           <span class="reel-size-pill" id="detail-size-badge" style="display: none;"></span>
-
-          <!-- Circular Download Button: Sits next to Options, automatically disappears once downloaded -->
-          <div class="dl-btn-container hidden" id="reel-dl-btn" title="Download for Offline Use" onclick="downloadCurrentReelOffline()">
-            <svg class="progress-ring" width="32" height="32">
-              <circle class="progress-ring-bg" stroke="rgba(255,255,255,0.14)" stroke-width="3" fill="transparent" r="14" cx="16" cy="16"/>
-              <circle class="progress-ring-fill" id="dl-progress-ring-fill" stroke-width="3" stroke-linecap="round" fill="transparent" r="14" cx="16" cy="16"/>
-            </svg>
-            <div class="dl-btn-content" id="dl-btn-inner">
-              <span id="dl-icon-symbol" style="font-size: 13px;">⬇</span>
-            </div>
-          </div>
 
           <!-- Single Options Button -->
           <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="openOptionsModal()">
@@ -2453,6 +2531,30 @@
     </div>
   </div>
 
+  <!-- Global Trip Board Offline Sync Sheet -->
+  <div class="modal-overlay" id="board-sync-sheet" onclick="if(event.target===this) closeBoardSyncSheet()">
+    <div class="sheet-box" onclick="event.stopPropagation()">
+      <div class="sheet-drag-handle"></div>
+      <div class="sheet-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="material-symbols-rounded" id="board-sync-sheet-icon" style="font-size: 22px; color: #38bdf8;">download</span>
+          <div class="sheet-title">Trip Board Offline Sync</div>
+        </div>
+        <button class="btn-sheet-close" onclick="closeBoardSyncSheet()">✕</button>
+      </div>
+      <div style="padding: 14px 16px;">
+        <div class="sync-summary-card">
+          <div class="sync-summary-main">
+            <span id="board-sync-count-label">0 Items</span>
+            <span id="board-sync-size-label" style="color: #38bdf8; font-size: 14px;">0 MB</span>
+          </div>
+          <div class="sync-summary-sub" id="board-sync-status-desc">Checking offline storage...</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;" id="board-sync-actions"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div class="status-toast" id="toast">
     <div class="status-dot" id="toast-dot"></div>
@@ -2547,6 +2649,20 @@
         const store = tx.objectStore('reels_meta');
         store.put({ id: reelId, isDownloaded: status, updatedAt: Date.now() });
         tx.oncomplete = () => resolve(true);
+      });
+    }
+
+    async function getAllDownloadedReelIds() {
+      const db = await openDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction('reels_meta', 'readonly');
+        const store = tx.objectStore('reels_meta');
+        const req = store.getAll();
+        req.onsuccess = () => {
+          const rows = req.result || [];
+          resolve(rows.filter(r => r.isDownloaded === true).map(r => r.id));
+        };
+        req.onerror = () => resolve([]);
       });
     }
 
@@ -4568,6 +4684,7 @@
 
       renderReelsFeed(activeReels);
       renderTripBoardGrid(activeReels);
+      await updateBoardSyncButtonState();
     }
 
     /* ========================================================================
@@ -4777,139 +4894,286 @@
 
       document.getElementById('view-detail').classList.remove('active');
       document.getElementById('view-collection').classList.remove('active');
-      document.getElementById('reel-dl-btn').classList.add('hidden');
 
       switchMainTab(previousTabBeforeDetail || 'feed');
     }
 
     /* ========================================================================
-       DOWNLOAD BUTTON & CIRCULAR PROGRESS
+       GLOBAL TRIP BOARD OFFLINE SYNC ENGINE
        ======================================================================== */
-    async function updateDownloadButtonState() {
-      if (!currentReel) return;
-      const dlBtn = document.getElementById('reel-dl-btn');
-      const inner = document.getElementById('dl-btn-inner');
-      const fillRing = document.getElementById('dl-progress-ring-fill');
-      const sizeBadge = document.getElementById('detail-size-badge');
+    const BOARD_SYNC_RING_CIRCUMFERENCE = 94.25; // 2 * PI * 15
 
-      const isDownloaded = await isReelDownloaded(currentReel.id);
-      const sizeStr = currentReel.size_mb ? `${currentReel.size_mb} MB` : '';
+    function getActiveBoardReels() {
+      const activeIds = getActiveReelIds();
+      let activeReels = masterCatalog.filter(r => activeIds.includes(r.id));
+      if (activeReels.length === 0 && masterCatalog.length > 0) {
+        activeReels = masterCatalog;
+      }
+      return activeReels;
+    }
 
-      if (isDownloaded) {
-        dlBtn.classList.add('hidden');
-        if (sizeBadge) {
-          if (sizeStr) {
-            sizeBadge.textContent = `⚡ ${sizeStr}`;
-            sizeBadge.className = 'reel-size-pill offline';
-            sizeBadge.style.display = 'inline-flex';
-          } else {
-            sizeBadge.style.display = 'none';
-          }
-        }
+    async function getTripBoardSyncInfo() {
+      const activeReels = getActiveBoardReels();
+      const activeIdSet = new Set(activeReels.map(r => r.id));
+      const downloadedIds = await getAllDownloadedReelIds();
+      const downloadedSet = new Set(downloadedIds);
+
+      const missingReels = activeReels.filter(r => !downloadedSet.has(r.id));
+      const staleIds = downloadedIds.filter(id => !activeIdSet.has(id));
+      const downloadedActiveReels = activeReels.filter(r => downloadedSet.has(r.id));
+
+      const totalBytes = activeReels.reduce((sum, r) => sum + (r.total_bytes || Math.round((r.size_mb || 0) * 1024 * 1024)), 0);
+      const missingBytes = missingReels.reduce((sum, r) => sum + (r.total_bytes || Math.round((r.size_mb || 0) * 1024 * 1024)), 0);
+      const totalMb = (totalBytes / (1024 * 1024)).toFixed(1);
+      const missingMb = (missingBytes / (1024 * 1024)).toFixed(1);
+
+      let state = 'none';
+      if (activeReels.length === 0) {
+        state = staleIds.length > 0 ? 'needs_sync' : 'none';
+      } else if (downloadedActiveReels.length === 0 && staleIds.length === 0) {
+        state = 'none';
+      } else if (missingReels.length === 0 && staleIds.length === 0) {
+        state = 'synced';
       } else {
-        dlBtn.classList.remove('hidden');
-        fillRing.style.strokeDashoffset = RING_CIRCUMFERENCE;
-        fillRing.classList.remove('done');
-        inner.innerHTML = '<span id="dl-icon-symbol" style="font-size: 13px;">⬇</span>';
-        if (sizeBadge) {
-          if (sizeStr) {
-            sizeBadge.textContent = sizeStr;
-            sizeBadge.className = 'reel-size-pill';
-            sizeBadge.style.display = 'inline-flex';
-          } else {
-            sizeBadge.style.display = 'none';
-          }
-        }
+        state = 'needs_sync';
+      }
+
+      return {
+        state,
+        activeReels,
+        missingReels,
+        staleIds,
+        downloadedActiveReels,
+        totalMb,
+        missingMb
+      };
+    }
+
+    async function updateBoardSyncButtonState() {
+      if (isDownloading) return;
+      const btn = document.getElementById('board-sync-btn');
+      const inner = document.getElementById('board-sync-inner');
+      const ringFill = document.getElementById('board-sync-ring-fill');
+      if (!btn || !inner) return;
+
+      const info = await getTripBoardSyncInfo();
+      btn.classList.remove('state-synced', 'state-needs-sync', 'state-downloading');
+      inner.className = 'material-symbols-rounded';
+      inner.style.fontSize = '20px';
+      if (ringFill) ringFill.style.strokeDashoffset = BOARD_SYNC_RING_CIRCUMFERENCE;
+
+      if (info.state === 'synced') {
+        btn.classList.add('state-synced');
+        inner.textContent = 'check_circle';
+        btn.title = `All ${info.activeReels.length} items (${info.totalMb} MB) saved offline`;
+      } else if (info.state === 'needs_sync') {
+        btn.classList.add('state-needs-sync');
+        inner.textContent = 'sync';
+        btn.title = 'Trip Board updated — tap to sync offline cache';
+      } else {
+        inner.textContent = 'download';
+        btn.title = `Download Trip Board (${info.totalMb} MB) for offline use`;
       }
     }
 
-    async function downloadCurrentReelOffline() {
-      if (!currentReel || isDownloading) return;
+    async function openBoardSyncSheet() {
+      if (isDownloading) {
+        showToast('Sync already in progress...');
+        return;
+      }
 
-      const isDownloaded = await isReelDownloaded(currentReel.id);
-      if (isDownloaded) return;
+      const info = await getTripBoardSyncInfo();
+      const countEl = document.getElementById('board-sync-count-label');
+      const sizeEl = document.getElementById('board-sync-size-label');
+      const descEl = document.getElementById('board-sync-status-desc');
+      const iconEl = document.getElementById('board-sync-sheet-icon');
+      const actionsEl = document.getElementById('board-sync-actions');
+
+      const n = info.activeReels.length;
+      countEl.textContent = `${n} ${n === 1 ? 'Item' : 'Items'} on Trip Board`;
+      sizeEl.textContent = `${info.totalMb} MB total`;
+
+      if (info.state === 'synced') {
+        iconEl.textContent = 'check_circle';
+        iconEl.style.color = '#34d399';
+        descEl.textContent = `Everything on your active Trip Board (${info.totalMb} MB) is cached offline and ready for zero-network use.`;
+        actionsEl.innerHTML = `
+          <button class="btn btn-danger" style="width: 100%;" onclick="clearAllBoardOfflineCache()">
+            Clear Offline Cache (${info.totalMb} MB)
+          </button>
+          <button class="btn btn-secondary" style="width: 100%;" onclick="closeBoardSyncSheet()">Done</button>
+        `;
+      } else if (info.state === 'needs_sync') {
+        iconEl.textContent = 'sync';
+        iconEl.style.color = '#fbbf24';
+        const parts = [];
+        if (info.missingReels.length > 0) {
+          parts.push(`${info.missingReels.length} new ${info.missingReels.length === 1 ? 'item' : 'items'} to download (${info.missingMb} MB)`);
+        }
+        if (info.staleIds.length > 0) {
+          parts.push(`${info.staleIds.length} removed ${info.staleIds.length === 1 ? 'item' : 'items'} to clean up`);
+        }
+        descEl.textContent = `Trip Board changed: ${parts.join(' and ')}.`;
+        actionsEl.innerHTML = `
+          <button class="btn" style="width: 100%; background: #f59e0b; color: #0f172a;" onclick="startBoardOfflineSync()">
+            Sync Trip Board Now
+          </button>
+          <button class="btn btn-secondary" style="width: 100%;" onclick="clearAllBoardOfflineCache()">
+            Clear All Offline Cache
+          </button>
+        `;
+      } else {
+        iconEl.textContent = 'download';
+        iconEl.style.color = '#38bdf8';
+        descEl.textContent = n > 0
+          ? `Download all ${n} active reels & carousels (${info.totalMb} MB) once so everything works offline.`
+          : 'Your Trip Board is currently empty.';
+        actionsEl.innerHTML = n > 0 ? `
+          <button class="btn" style="width: 100%; background: #38bdf8; color: #0f172a;" onclick="startBoardOfflineSync()">
+            Download All (${info.totalMb} MB)
+          </button>
+          <button class="btn btn-secondary" style="width: 100%;" onclick="closeBoardSyncSheet()">Cancel</button>
+        ` : `<button class="btn btn-secondary" style="width: 100%;" onclick="closeBoardSyncSheet()">Close</button>`;
+      }
+
+      document.getElementById('board-sync-sheet').classList.add('active');
+    }
+
+    function closeBoardSyncSheet() {
+      const sheet = document.getElementById('board-sync-sheet');
+      if (sheet) sheet.classList.remove('active');
+    }
+
+    async function clearAllBoardOfflineCache() {
+      closeBoardSyncSheet();
+      const downloadedIds = await getAllDownloadedReelIds();
+      for (const id of downloadedIds) {
+        await purgeReelMedia(id);
+      }
+      await updateBoardSyncButtonState();
+      if (currentReel) await updateDownloadButtonState();
+      showToast('Offline cache cleared');
+    }
+
+    async function startBoardOfflineSync() {
+      if (isDownloading) return;
+      closeBoardSyncSheet();
+
+      const info = await getTripBoardSyncInfo();
+      const btn = document.getElementById('board-sync-btn');
+      const inner = document.getElementById('board-sync-inner');
+      const ringFill = document.getElementById('board-sync-ring-fill');
 
       isDownloading = true;
-      const dlBtn = document.getElementById('reel-dl-btn');
-      const inner = document.getElementById('dl-btn-inner');
-      const fillRing = document.getElementById('dl-progress-ring-fill');
+      btn.classList.remove('state-synced', 'state-needs-sync');
+      btn.classList.add('state-downloading');
+      inner.className = 'board-sync-counter';
 
-      const basePath = currentReel.reel_json ? currentReel.reel_json.substring(0, currentReel.reel_json.lastIndexOf('/') + 1) : 'data/reels/' + currentReel.id + '/';
-      const videoFile = currentReel.video || 'video.mp4';
+      // 1. Purge removed items first
+      for (const staleId of info.staleIds) {
+        await purgeReelMedia(staleId);
+      }
 
-      // 1 Video + N MP4 shots
-      const totalMedia = currentReel.shots.length + 1;
-      let completedMedia = 0;
+      const toDownload = info.missingReels;
+      const totalItems = toDownload.length;
+      if (totalItems === 0) {
+        isDownloading = false;
+        await updateBoardSyncButtonState();
+        showToast('⚡ Trip Board synced!');
+        return;
+      }
 
-      // Immediately show 1 / totalMedia while video begins downloading
-      inner.innerHTML = `<span class="dl-counter-text">1/${totalMedia}</span>`;
-
-      // Helper function to download and cache a single asset
-      async function cacheFile(url, rawKey) {
+      async function cacheFile(url, rawKey, reelId) {
         try {
           const res = await fetch(url);
+          if (!res.ok) return null;
           const blob = await res.blob();
-          await saveMediaBlob(url, blob, currentReel.id);
+          await saveMediaBlob(url, blob, reelId);
           if (rawKey && rawKey !== url) {
-            await saveMediaBlob(rawKey, blob, currentReel.id);
+            await saveMediaBlob(rawKey, blob, reelId);
           }
           return blob;
         } catch (e) {
-          console.warn('Download error:', url, e);
+          console.warn('Offline sync download error:', url, e);
           return null;
         }
       }
 
-      // Step A: Cache metadata (reel.json and thumbnail.jpg) quietly
-      await cacheFile(resolveMediaUrl(basePath + 'reel.json'), basePath + 'reel.json');
-      await cacheFile(resolveMediaUrl(basePath + currentReel.thumbnail), basePath + currentReel.thumbnail);
+      for (let i = 0; i < totalItems; i++) {
+        const summary = toDownload[i];
+        inner.textContent = `${i + 1}/${totalItems}`;
 
-      // Step B: Download Video (Item 1 of totalMedia)
-      inner.innerHTML = `<span class="dl-counter-text">1/${totalMedia}</span>`;
-      const videoBlob = await cacheFile(resolveMediaUrl(basePath + videoFile), basePath + videoFile);
-      if (videoBlob) {
-        const blobUrl = URL.createObjectURL(videoBlob);
-        const vp = document.getElementById('detail-video-player');
-        if (vp) vp.src = blobUrl;
-      }
-      completedMedia = 1;
-      const progressPctVideo = completedMedia / totalMedia;
-      fillRing.style.strokeDashoffset = RING_CIRCUMFERENCE - (progressPctVideo * RING_CIRCUMFERENCE);
+        const basePath = summary.reel_json
+          ? summary.reel_json.substring(0, summary.reel_json.lastIndexOf('/') + 1)
+          : `data/reels/${summary.id}/`;
 
-      // Step C: Download each GIF shot (Items 2 to totalMedia)
-      for (let i = 0; i < currentReel.shots.length; i++) {
-        const shot = currentReel.shots[i];
-        const currentStep = completedMedia + 1;
-        inner.innerHTML = `<span class="dl-counter-text">${currentStep}/${totalMedia}</span>`;
+        // Fetch & cache reel.json
+        const jsonUrl = resolveMediaUrl(summary.reel_json || `${basePath}reel.json`);
+        let fullReel = null;
+        try {
+          const res = await fetch(jsonUrl);
+          if (res.ok) {
+            const text = await res.text();
+            fullReel = JSON.parse(text);
+            const jsonBlob = new Blob([text], { type: 'application/json' });
+            await saveMediaBlob(jsonUrl, jsonBlob, summary.id);
+            await saveMediaBlob(basePath + 'reel.json', jsonBlob, summary.id);
+          }
+        } catch (e) {
+          console.warn('Failed to fetch reel.json during sync:', summary.id, e);
+        }
 
-        const shotUrl = resolveMediaUrl(basePath + shot.clip);
-        const shotBlob = await cacheFile(shotUrl, basePath + shot.clip);
-        if (shotBlob) {
-          const blobUrl = URL.createObjectURL(shotBlob);
-          const video = document.getElementById(`media-shot-${shot.id}`);
-          if (video) {
-            video.src = blobUrl;
-            video.play().catch(() => {});
+        // Cache thumbnail
+        const thumbRel = (fullReel && fullReel.thumbnail) || 'thumbnail.jpg';
+        await cacheFile(resolveMediaUrl(basePath + thumbRel), basePath + thumbRel, summary.id);
+
+        // Cache main video if Reel
+        if (!isCarouselItem(fullReel || summary)) {
+          const vidRel = (fullReel && fullReel.video) || 'video.mp4';
+          await cacheFile(resolveMediaUrl(basePath + vidRel), basePath + vidRel, summary.id);
+        }
+
+        // Cache all shots / slides
+        const shots = (fullReel && fullReel.shots) || [];
+        for (const shot of shots) {
+          const filesToCache = new Set();
+          if (shot.image) filesToCache.add(shot.image);
+          if (shot.video) filesToCache.add(shot.video);
+          if (shot.clip) filesToCache.add(shot.clip);
+          for (const rel of filesToCache) {
+            await cacheFile(resolveMediaUrl(basePath + rel), basePath + rel, summary.id);
           }
         }
 
-        completedMedia++;
-        const pct = completedMedia / totalMedia;
-        fillRing.style.strokeDashoffset = RING_CIRCUMFERENCE - (pct * RING_CIRCUMFERENCE);
-        inner.innerHTML = `<span class="dl-counter-text">${completedMedia}/${totalMedia}</span>`;
+        await setReelDownloaded(summary.id, true);
+
+        const pct = (i + 1) / totalItems;
+        if (ringFill) {
+          ringFill.style.strokeDashoffset = BOARD_SYNC_RING_CIRCUMFERENCE - (pct * BOARD_SYNC_RING_CIRCUMFERENCE);
+        }
       }
 
-      await setReelDownloaded(currentReel.id, true);
       isDownloading = false;
+      await updateBoardSyncButtonState();
+      if (currentReel) await updateDownloadButtonState();
+      showToast(`⚡ ${totalItems} ${totalItems === 1 ? 'item' : 'items'} saved offline!`);
+    }
 
-      fillRing.classList.add('done');
-      fillRing.style.strokeDashoffset = 0;
-      inner.innerHTML = '<span style="color: var(--success); font-size: 14px;">✓</span>';
-      showToast('⚡ All Media Saved Offline!');
+    async function updateDownloadButtonState() {
+      if (!currentReel) return;
+      const sizeBadge = document.getElementById('detail-size-badge');
+      const isDownloaded = await isReelDownloaded(currentReel.id);
+      const sizeStr = currentReel.size_mb ? `${currentReel.size_mb} MB` : '';
 
-      setTimeout(() => {
-        updateDownloadButtonState();
-      }, 1600);
+      if (sizeBadge) {
+        if (sizeStr) {
+          sizeBadge.textContent = isDownloaded ? `⚡ ${sizeStr}` : sizeStr;
+          sizeBadge.className = isDownloaded ? 'reel-size-pill offline' : 'reel-size-pill';
+          sizeBadge.style.display = 'inline-flex';
+        } else {
+          sizeBadge.style.display = 'none';
+        }
+      }
     }
 
     /* ========================================================================
@@ -4972,10 +5236,12 @@
           if (blob) {
             const blobUrl = URL.createObjectURL(blob);
             objectUrlMap.set(fullClipUrl, blobUrl);
-            const video = document.getElementById(`media-shot-${shot.id}`);
-            if (video) {
-              video.src = blobUrl;
-              video.play().catch(() => {});
+            const mediaEl = document.getElementById(`media-shot-${shot.id}`);
+            if (mediaEl) {
+              mediaEl.src = blobUrl;
+              if (mediaEl.tagName === 'VIDEO') {
+                mediaEl.play().catch(() => {});
+              }
             }
           }
         });
