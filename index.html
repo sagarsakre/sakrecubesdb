@@ -711,12 +711,26 @@
       color: #e2e8f0;
       font-size: 10px;
       font-weight: 600;
-      padding: 2px 6px;
+      padding: 3px 6px;
       border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+      line-height: 1.15;
+    }
+    .trip-grid-badge-row {
       display: flex;
       align-items: center;
       gap: 3px;
     }
+    .trip-grid-badge-pct {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: rgba(226, 232, 240, 0.8);
+    }
+    .trip-grid-badge-pct.partial { color: #fbbf24; }
+    .trip-grid-badge-pct.done { color: #34d399; }
     .trip-grid-info {
       position: absolute;
       bottom: 0;
@@ -4427,11 +4441,18 @@
           ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="13" height="13" rx="2"></rect><path d="M4 17V5a2 2 0 0 1 2-2h12"></path></svg>`
           : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>`;
 
+        const checkedCount = getCheckedShots(reel.id).length;
+        const pct = totalShots > 0 ? Math.round((checkedCount / totalShots) * 100) : 0;
+        const pctClass = pct === 100 ? 'done' : (checkedCount > 0 ? 'partial' : '');
+
         card.innerHTML = `
           <img src="${thumbUrl}" alt="${reel.title}" loading="lazy">
           <div class="trip-grid-shots-badge">
-            ${badgeIconSvg}
-            <span>${totalShots}</span>
+            <div class="trip-grid-badge-row">
+              ${badgeIconSvg}
+              <span>${totalShots}</span>
+            </div>
+            <span class="trip-grid-badge-pct ${pctClass}" data-grid-progress="${reel.id}">${pct}%</span>
           </div>
           <div class="trip-grid-info">
             <div class="trip-grid-title">${reel.title}</div>
@@ -5040,12 +5061,18 @@
       document.getElementById('counter-text').textContent = `${count} / ${total} ${unitLabel} (${pct}%)`;
       document.getElementById('detail-progress-fill').style.width = `${pct}%`;
 
-      // Sync live progress label on the Feed card
+      // Sync live progress label on the Feed & Grid cards
       const feedProgressEl = document.querySelector(`[data-reel-progress="${currentReel.id}"]`);
       if (feedProgressEl) {
         feedProgressEl.textContent = `${count}/${total} | ${pct}% Done`;
         feedProgressEl.classList.toggle('done', pct === 100);
         feedProgressEl.classList.toggle('partial', count > 0 && pct < 100);
+      }
+      const gridProgressEl = document.querySelector(`[data-grid-progress="${currentReel.id}"]`);
+      if (gridProgressEl) {
+        gridProgressEl.textContent = `${pct}%`;
+        gridProgressEl.classList.toggle('done', pct === 100);
+        gridProgressEl.classList.toggle('partial', count > 0 && pct < 100);
       }
     }
 
