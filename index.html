@@ -2122,6 +2122,28 @@
       border: 2px solid #38bdf8;
       box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
     }
+    .col-grid-tile.completed {
+      opacity: 0.45;
+      filter: grayscale(45%);
+    }
+    .col-grid-tile-done-pill {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #10b981;
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 4;
+      pointer-events: none;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    }
     .col-grid-tile img,
     .col-grid-tile video {
       width: 100%;
@@ -2755,9 +2777,9 @@
       <button class="btn-bulk-sm" style="background: rgba(255,255,255,0.1); color: #e2e8f0;" id="bulk-select-all-btn" onclick="toggleBulkSelectAll()">All</button>
     </div>
     <div class="bulk-action-btns">
-      <button class="btn-bulk-sm" style="background: #38bdf8; color: #0f172a;" id="bulk-add-col-btn" onclick="openBulkSaveToCollectionSheet()">+ Collection</button>
+      <button class="btn-bulk-sm" style="background: #10b981; color: #0f172a;" id="bulk-mark-done-btn" onclick="bulkMarkSelectedDone()">✓ Done</button>
+      <button class="btn-bulk-sm" style="background: #38bdf8; color: #0f172a;" id="bulk-add-col-btn" onclick="openBulkSaveToCollectionSheet()">+ Col</button>
       <button class="btn-bulk-sm" style="background: #ef4444; color: #fff; display: none;" id="bulk-remove-col-btn" onclick="bulkRemoveFromActiveCollection()">Remove</button>
-      <button class="btn-bulk-sm" style="background: rgba(255,255,255,0.1); color: #cbd5e1;" onclick="exitBulkSelectMode()">Done</button>
     </div>
   </div>
 
@@ -3476,7 +3498,7 @@
       const prog = getCollectionProgress(col);
       const progClass = prog.pct === 100 ? 'done' : (prog.done > 0 ? 'partial' : '');
       const progBadgeHtml = prog.total > 0
-        ? `<div class="col-cover-progress ${progClass}">${prog.pct}%</div>`
+        ? `<div class="col-cover-progress ${progClass}">${prog.done}/${prog.total} | ${prog.pct}%</div>`
         : '';
       let coverHtml = '';
 
@@ -4041,12 +4063,14 @@
 
     function updateBulkActionBar() {
       const countEl = document.getElementById('bulk-selected-count');
+      const doneBtn = document.getElementById('bulk-mark-done-btn');
       const addBtn = document.getElementById('bulk-add-col-btn');
       const remBtn = document.getElementById('bulk-remove-col-btn');
       const allBtn = document.getElementById('bulk-select-all-btn');
       const count = bulkSelectedKeys.size;
 
       if (countEl) countEl.textContent = `${count} selected`;
+      if (doneBtn) doneBtn.disabled = count === 0;
       if (addBtn) addBtn.disabled = count === 0;
       if (remBtn) remBtn.disabled = count === 0;
 
@@ -4117,6 +4141,47 @@
       renderCollectionShots(col);
       renderCollectionsGrid();
       showToast(`Removed ${removedCount} ${removedCount === 1 ? 'item' : 'items'} from "${col.name}"`);
+    }
+
+    function bulkMarkSelectedDone() {
+      if (bulkSelectedKeys.size === 0) return;
+      const items = getBulkAvailableItems().filter(it => bulkSelectedKeys.has(`${it.reelId}::${it.shotId}`));
+      if (items.length === 0) return;
+
+      // Check if all selected items are already done (if so, untick them; otherwise mark all done)
+      const allAlreadyDone = items.every(it => getCheckedShots(it.reelId).some(id => id == it.shotId));
+
+      const affectedReelIds = new Set();
+      for (const it of items) {
+        const checked = getCheckedShots(it.reelId);
+        let updated;
+        if (allAlreadyDone) {
+          updated = checked.filter(id => id != it.shotId);
+        } else {
+          updated = checked.some(id => id == it.shotId) ? checked : [...checked, it.shotId];
+        }
+        setCheckedShots(it.reelId, updated);
+        affectedReelIds.add(it.reelId);
+      }
+
+      affectedReelIds.forEach(rid => syncReelProgressIndicators(rid));
+      renderCollectionsGrid();
+
+      const ctx = bulkModeContext;
+      exitBulkSelectMode();
+
+      if (ctx === 'collection' && activeCollectionId) {
+        const col = getCollections().find(c => c.id === activeCollectionId);
+        if (col) renderCollectionShots(col);
+      } else if (ctx === 'detail' && currentReel) {
+        renderShots(currentReel);
+        updateProgress();
+      }
+
+      showToast(allAlreadyDone
+        ? `Unmarked ${items.length} ${items.length === 1 ? 'item' : 'items'}`
+        : `✓ Marked ${items.length} ${items.length === 1 ? 'item' : 'items'} done`
+      );
     }
 
     function openBulkSaveToCollectionSheet() {
@@ -4219,20 +4284,24 @@
       if (isGridMode) {
         for (const item of items) {
           const bulkKey = `${item.reelId}::${item.shotId}`;
+          const isDone = getCheckedShots(item.reelId).some(id => id == item.shotId);
           const tile = document.createElement('div');
-          tile.className = `col-grid-tile ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
+          tile.className = `col-grid-tile ${isDone ? 'completed' : ''} ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
           tile.id = `col-shot-${item.reelId}-${item.shotId}`;
           tile.dataset.bulkKey = bulkKey;
+          tile.style.order = isDone ? '1' : '0';
 
           const fullClipUrl = resolveMediaUrl(item.basePath + item.clip);
           const isImg = isImageClip(item.clip);
           const badgeText = isImg ? '📸' : (item.duration ? `🎬 ${item.duration}` : '🎬');
+          const donePillHtml = isDone ? '<div class="col-grid-tile-done-pill">✓</div>' : '';
           const mediaHtml = isImg
             ? `<img src="${fullClipUrl}" loading="eager" alt="${item.title}">`
             : `<video src="${fullClipUrl}#t=0.1" muted playsinline webkit-playsinline preload="metadata"></video>`;
 
           tile.innerHTML = `
             ${mediaHtml}
+            ${donePillHtml}
             <div class="col-grid-badge">${badgeText}</div>
             <div class="col-grid-label">${item.title}</div>
             <div class="bulk-check-circle">✓</div>
@@ -5949,22 +6018,26 @@
 
       if (isGridMode) {
         for (const shot of reel.shots) {
+          const isDone = checkedShots.includes(shot.id);
           const bulkKey = `${reel.id}::${shot.id}`;
           const tile = document.createElement('div');
-          tile.className = `col-grid-tile ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
+          tile.className = `col-grid-tile ${isDone ? 'completed' : ''} ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
           tile.id = `shot-${shot.id}`;
           tile.dataset.bulkKey = bulkKey;
+          tile.style.order = isDone ? '1' : '0';
 
           const clipRel = shot.video || shot.clip || shot.image || '';
           const fullClipUrl = resolveMediaUrl(basePath + clipRel);
           const isImg = isImageClip(clipRel, shot);
           const badgeText = isImg ? '📸' : (shot.duration ? `🎬 ${shot.duration}` : '🎬');
+          const donePillHtml = isDone ? '<div class="col-grid-tile-done-pill">✓</div>' : '';
           const mediaHtml = isImg
             ? `<img id="media-shot-${shot.id}" src="${fullClipUrl}" loading="eager" alt="${shot.title}">`
             : `<video id="media-shot-${shot.id}" src="${fullClipUrl}#t=0.1" muted playsinline webkit-playsinline preload="metadata"></video>`;
 
           tile.innerHTML = `
             ${mediaHtml}
+            ${donePillHtml}
             <div class="col-grid-badge">${badgeText}</div>
             <div class="col-grid-label">${shot.title}</div>
             <div class="bulk-check-circle">✓</div>
