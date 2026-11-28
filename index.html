@@ -1762,6 +1762,9 @@
       object-fit: cover;
       background: #111;
       flex-shrink: 0;
+      display: block;
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
     }
 
     .library-item-info {
@@ -3265,7 +3268,7 @@
             ? parentReel.thumbnail
             : (firstItem.basePath ? (firstItem.basePath.replace(/\/+$/, '') + '/thumbnail.jpg') : `data/reels/${firstItem.reelId}/thumbnail.jpg`);
           const thumbUrl = resolveMediaUrl(thumbPath);
-          thumbHtml = `<img id="sheet-col-thumb-${col.id}" src="${thumbUrl}" alt="${col.name}" loading="lazy">`;
+          thumbHtml = `<img id="sheet-col-thumb-${col.id}" src="${thumbUrl}" alt="${col.name}" loading="eager">`;
         } else {
           thumbHtml = `<span>📁</span>`;
         }
@@ -4544,14 +4547,15 @@
 
         const dateStr = reel.created_at ? new Date(reel.created_at).toLocaleDateString() : '';
         const thumbUrl = resolveMediaUrl(reel.thumbnail);
+        const unitLabel = isCarouselItem(reel) ? (reel.total_shots === 1 ? 'photo' : 'photos') : 'shots';
 
         item.innerHTML = `
-          <img class="library-item-thumb" src="${thumbUrl}" alt="${reel.title}" loading="lazy">
+          <img class="library-item-thumb" src="${thumbUrl}" alt="${reel.title}" loading="eager" decoding="async">
           <div class="library-item-info">
             <div class="library-item-title">${reel.title}</div>
             <div class="library-item-sub">${reel.subtitle || ''}</div>
             <div class="library-item-meta">
-              <span>${reel.total_shots} shots</span>
+              <span>${reel.total_shots} ${unitLabel}</span>
               ${reel.size_mb ? `<span>• ${reel.size_mb} MB</span>` : ''}
               ${dateStr ? `<span>• ${dateStr}</span>` : ''}
             </div>
