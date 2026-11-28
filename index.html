@@ -2343,7 +2343,7 @@
           <!-- Size Badge: Shows MB or offline indicator when downloaded -->
           <span class="reel-size-pill" id="detail-size-badge" style="display: none;"></span>
 
-          <button class="btn btn-secondary" id="detail-select-btn" style="padding: 6px 11px; font-size: 12px; border-radius: 18px;" onclick="toggleBulkSelectMode('detail')">
+          <button class="btn btn-secondary" id="detail-select-btn" style="padding: 6px 11px; font-size: 12px; border-radius: 18px; display: none;" onclick="toggleBulkSelectMode('detail')">
             Select
           </button>
           <button class="btn btn-secondary" id="detail-layout-btn" title="Switch to 3xN Grid" aria-label="Toggle Grid View" style="width: 34px; height: 34px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;" onclick="toggleGridViewMode('detail')">
@@ -2396,7 +2396,7 @@
         <button class="back-btn" onclick="showHomeView()">← Collections</button>
         
         <div class="detail-nav-actions">
-          <button class="btn btn-secondary" id="col-select-btn" style="padding: 6px 11px; font-size: 12px; border-radius: 18px;" onclick="toggleBulkSelectMode('collection')">
+          <button class="btn btn-secondary" id="col-select-btn" style="padding: 6px 11px; font-size: 12px; border-radius: 18px; display: none;" onclick="toggleBulkSelectMode('collection')">
             Select
           </button>
           <button class="btn btn-secondary" id="col-layout-btn" title="Switch to 3xN Grid" aria-label="Toggle Grid View" style="width: 34px; height: 34px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;" onclick="toggleGridViewMode('collection')">
@@ -3908,18 +3908,26 @@
     function updateLayoutToggleIcons() {
       const colIcon = document.getElementById('col-layout-icon');
       const colBtn = document.getElementById('col-layout-btn');
+      const colSelBtn = document.getElementById('col-select-btn');
       if (colIcon) colIcon.textContent = collectionGridMode ? 'view_agenda' : 'grid_view';
       if (colBtn) colBtn.title = collectionGridMode ? 'Switch to 1xN Full View' : 'Switch to 3xN Grid';
+      if (colSelBtn) colSelBtn.style.display = collectionGridMode ? 'inline-flex' : 'none';
 
       const detIcon = document.getElementById('detail-layout-icon');
       const detBtn = document.getElementById('detail-layout-btn');
+      const detSelBtn = document.getElementById('detail-select-btn');
       if (detIcon) detIcon.textContent = detailGridMode ? 'view_agenda' : 'grid_view';
       if (detBtn) detBtn.title = detailGridMode ? 'Switch to 1xN Full View' : 'Switch to 3xN Grid';
+      if (detSelBtn) detSelBtn.style.display = detailGridMode ? 'inline-flex' : 'none';
     }
 
     function toggleGridViewMode(context) {
       if (context === 'collection') {
         collectionGridMode = !collectionGridMode;
+        if (!collectionGridMode && bulkModeContext === 'collection') {
+          bulkModeContext = null;
+          bulkSelectedKeys.clear();
+        }
         updateLayoutToggleIcons();
         if (activeCollectionId) {
           const col = getCollections().find(c => c.id === activeCollectionId);
@@ -3927,6 +3935,10 @@
         }
       } else if (context === 'detail') {
         detailGridMode = !detailGridMode;
+        if (!detailGridMode && bulkModeContext === 'detail') {
+          bulkModeContext = null;
+          bulkSelectedKeys.clear();
+        }
         updateLayoutToggleIcons();
         if (currentReel) renderShots(currentReel);
       }
