@@ -145,9 +145,14 @@ def fetch_instagram_media_info(shortcode: str, ytdlp_bin: str = "yt-dlp"):
              "--skip-download", f"https://www.instagram.com/p/{shortcode}/"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20
         )
-        return _query()
+        refreshed = _query()
+        if refreshed:
+            return refreshed
     except Exception:
-        return None
+        pass
+
+    print("⚠️ IG_COOKIE_AUTH_REQUIRED: Instagram cookies missing or expired; carousel/private API lookup skipped.")
+    return None
 
 
 def download_binary_url(url: str, dest: Path):

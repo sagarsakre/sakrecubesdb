@@ -304,11 +304,33 @@ def process_one_job():
             final_label = reel_label or f"Reel {shortcode}"
             escaped_label = html.escape(final_label)
             escaped_err = html.escape(err_msg[:200])
+            full_out = (proc.stdout or "").lower()
+            is_cookie_err = any(k in full_out for k in (
+                "ig_cookie_auth_required",
+                "no video formats found",
+                "login required",
+                "challenge_required",
+                "cookies",
+                "401",
+                "403",
+                "rate-limit",
+            ))
+            cookie_help = ""
+            if is_cookie_err:
+                cookie_help = (
+                    "\n\n🍪 <b>Instagram Cookies Expired or Missing</b>\n"
+                    "To refresh from your Mac:\n"
+                    "1. Open Chrome on your Mac and make sure you're logged into Instagram.\n"
+                    "2. Run this command in Terminal:\n"
+                    "<code>bash ~/Movies/Edits/\"Reference Reel\"/app/scripts/sync_ig_cookies.sh</code>\n"
+                    "3. Re-send the Instagram link here!"
+                )
             fail_msg = (
                 f"🔴 Reel ingestion failed on the Pi.\n"
                 f'Reel: <a href="{clean_url}">{escaped_label}</a>\n'
                 f"Link: {clean_url}\n"
                 f"⚠️ Error: <code>{escaped_err}</code>"
+                f"{cookie_help}"
             )
             send_telegram(fail_msg, chat_id)
             print(f"[Worker] ❌ Job #{job_id} failed with exit code {proc.returncode}.", flush=True)
