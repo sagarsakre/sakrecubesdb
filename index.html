@@ -2217,9 +2217,40 @@
       box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
     }
     .shot-card.bulk-selectable .shot-check,
-    .shot-card.bulk-selectable .shot-save-btn {
+    .shot-card.bulk-selectable .shot-save-btn,
+    .shot-card.bulk-selectable .shot-hide-btn {
       pointer-events: none;
       opacity: 0.35;
+    }
+    .shot-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .shot-hide-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      padding: 0;
+    }
+    .shot-hide-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    .shot-hide-btn.is-hidden {
+      color: #38bdf8;
+    }
+    .shot-card.hidden-shot-card {
+      opacity: 0.65;
     }
     .bulk-action-bar {
       position: fixed;
@@ -2425,6 +2456,20 @@
       <!-- Continuous Shot Cards List -->
       <div class="shots-list" id="shots-container">
         <!-- Injected via JavaScript -->
+      </div>
+
+      <!-- Collapsible Hidden Shots/Photos Accordion -->
+      <div id="hidden-shots-accordion" style="display: none; margin-top: 16px; padding-bottom: 30px;">
+        <button class="col-archived-toggle" onclick="toggleHiddenAccordion()">
+          <span style="display: inline-flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-rounded" style="font-size: 17px;">visibility_off</span>
+            <span id="hidden-accordion-title">Hidden Items (0)</span>
+          </span>
+          <span id="hidden-accordion-arrow" style="font-size: 11px;">▾</span>
+        </button>
+        <div class="shots-list" id="hidden-shots-container" style="display: none; margin-top: 10px;">
+          <!-- Injected via JavaScript -->
+        </div>
       </div>
 
     </section>
@@ -3138,6 +3183,73 @@
         console.warn('Using local cached checkmarks (offline):', err);
       }
       return getChecksMap();
+    }
+
+    // Debounced Cloud Sync for Hidden Shots/Photos
+    const HIDDEN_MAP_KEY = 'reelshot_hidden_map';
+    function getHiddenMap() {
+      try {
+        return JSON.parse(localStorage.getItem(HIDDEN_MAP_KEY) || '{}') || {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    let hiddenSyncTimer = null;
+    function pushHiddenToCloud(map) {
+      if (IS_LOCAL_DEV) return;
+      clearTimeout(hiddenSyncTimer);
+      hiddenSyncTimer = setTimeout(async () => {
+        try {
+          const client = await getR2Client();
+          if (!client) return;
+          const putUrl = `${R2_ENDPOINT}/${R2_BUCKET}/data/hidden.json`;
+          await client.fetch(putUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(map, null, 2),
+            keepalive: true
+          });
+          console.log('☁️ Synced hidden items to R2 cloud');
+        } catch (e) {
+          console.warn('Cloud sync error (hidden):', e);
+        }
+      }, 300);
+    }
+
+    async function loadCloudHidden() {
+      try {
+        const cacheBuster = '?t=' + Date.now();
+        const res = await fetch(resolveMediaUrl('data/hidden.json') + cacheBuster, { cache: 'no-store' });
+        if (res.ok) {
+          const serverMap = await res.json();
+          if (serverMap && typeof serverMap === 'object' && !Array.isArray(serverMap)) {
+            localStorage.setItem(HIDDEN_MAP_KEY, JSON.stringify(serverMap));
+            return serverMap;
+          }
+        }
+      } catch (err) {
+        console.warn('Using local cached hidden items (offline):', err);
+      }
+      return getHiddenMap();
+    }
+
+    function getHiddenShots(reelId) {
+      const map = getHiddenMap();
+      return Array.isArray(map[reelId]) ? map[reelId] : [];
+    }
+
+    function setHiddenShots(reelId, arr, syncCloud = true) {
+      const map = getHiddenMap();
+      if (arr && arr.length > 0) {
+        map[reelId] = arr;
+      } else {
+        delete map[reelId];
+      }
+      localStorage.setItem(HIDDEN_MAP_KEY, JSON.stringify(map));
+      if (syncCloud) {
+        pushHiddenToCloud(map);
+      }
     }
 
     /* ========================================================================
@@ -4415,23 +4527,30 @@
       if (fillEl) fillEl.style.width = `${prog.pct}%`;
     }
 
+    function getReelVisibleProgress(reelId, rawTotal) {
+      const hidden = getHiddenShots(reelId);
+      const checked = getCheckedShots(reelId);
+      const visibleTotal = Math.max(0, (rawTotal || 0) - hidden.length);
+      const count = checked.filter(id => !hidden.some(h => h == id)).length;
+      const pct = visibleTotal > 0 ? Math.round((count / visibleTotal) * 100) : 0;
+      return { count, visibleTotal, pct };
+    }
+
     function syncReelProgressIndicators(reelId) {
       const reel = masterCatalog.find(r => r.id === reelId);
       if (!reel) return;
-      const count = getCheckedShots(reelId).length;
-      const total = reel.total_shots || 1;
-      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+      const { count, visibleTotal, pct } = getReelVisibleProgress(reelId, reel.total_shots || 1);
 
       const feedProgressEl = document.querySelector(`[data-reel-progress="${reelId}"]`);
       if (feedProgressEl) {
-        feedProgressEl.textContent = `${count}/${total} | ${pct}% Done`;
-        feedProgressEl.classList.toggle('done', pct === 100);
+        feedProgressEl.textContent = `${count}/${visibleTotal} | ${pct}% Done`;
+        feedProgressEl.classList.toggle('done', visibleTotal > 0 && pct === 100);
         feedProgressEl.classList.toggle('partial', count > 0 && pct < 100);
       }
       const gridProgressEl = document.querySelector(`[data-grid-progress="${reelId}"]`);
       if (gridProgressEl) {
         gridProgressEl.textContent = `${pct}%`;
-        gridProgressEl.classList.toggle('done', pct === 100);
+        gridProgressEl.classList.toggle('done', visibleTotal > 0 && pct === 100);
         gridProgressEl.classList.toggle('partial', count > 0 && pct < 100);
       }
     }
@@ -4644,11 +4763,12 @@
       masterCatalog.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
 
       if (!IS_LOCAL_DEV) {
-        // Fetch latest synced Trip Board, Saved Collections, and Checkmarks from cloud server
+        // Fetch latest synced Trip Board, Saved Collections, Checkmarks, and Hidden items from cloud server
         await Promise.all([
           loadCloudCollections(),
           loadCloudTripBoard(),
-          loadCloudChecks()
+          loadCloudChecks(),
+          loadCloudHidden()
         ]);
       }
 
@@ -5115,10 +5235,9 @@
           ? `<span class="reel-likes-pill" title="${likesCount.toLocaleString()} likes">❤️ ${formatViews(likesCount)}</span>`
           : '';
         const captionText = (reel.caption && reel.caption.trim()) ? reel.caption.trim() : reel.title;
-        const checkedCount = getCheckedShots(reel.id).length;
-        const progressPct = totalShots > 0 ? Math.round((checkedCount / totalShots) * 100) : 0;
-        const progressClass = progressPct === 100 ? 'done' : (checkedCount > 0 ? 'partial' : '');
-        const progressHtml = `<span class="reel-tick-progress ${progressClass}" data-reel-progress="${reel.id}" onclick="openSplitScenesFromFeed('${reel.id}')">${checkedCount}/${totalShots} | ${progressPct}% Done</span>`;
+        const { count: checkedCount, visibleTotal, pct: progressPct } = getReelVisibleProgress(reel.id, totalShots);
+        const progressClass = (visibleTotal > 0 && progressPct === 100) ? 'done' : (checkedCount > 0 ? 'partial' : '');
+        const progressHtml = `<span class="reel-tick-progress ${progressClass}" data-reel-progress="${reel.id}" onclick="openSplitScenesFromFeed('${reel.id}')">${checkedCount}/${visibleTotal} | ${progressPct}% Done</span>`;
 
         if (isCarousel) {
           const photosLabel = totalShots === 1 ? '1 Photo' : `${totalShots} Photos`;
@@ -5389,9 +5508,8 @@
           ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="13" height="13" rx="2"></rect><path d="M4 17V5a2 2 0 0 1 2-2h12"></path></svg>`
           : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>`;
 
-        const checkedCount = getCheckedShots(reel.id).length;
-        const pct = totalShots > 0 ? Math.round((checkedCount / totalShots) * 100) : 0;
-        const pctClass = pct === 100 ? 'done' : (checkedCount > 0 ? 'partial' : '');
+        const { count: checkedCount, visibleTotal, pct } = getReelVisibleProgress(reel.id, totalShots);
+        const pctClass = (visibleTotal > 0 && pct === 100) ? 'done' : (checkedCount > 0 ? 'partial' : '');
 
         card.innerHTML = `
           <img src="${thumbUrl}" alt="${reel.title}" loading="lazy">
@@ -6005,19 +6123,55 @@
     /* ========================================================================
        RENDER SHOTS & FLUID SLIDE-OUT COMPLETION ANIMATION
        ======================================================================== */
+    function toggleHiddenAccordion() {
+      const container = document.getElementById('hidden-shots-container');
+      const arrow = document.getElementById('hidden-accordion-arrow');
+      if (!container) return;
+      const isOpen = container.style.display !== 'none';
+      container.style.display = isOpen ? 'none' : 'flex';
+      if (arrow) arrow.textContent = isOpen ? '▾' : '▴';
+    }
+
+    function toggleHideShot(shotId, e) {
+      if (e) e.stopPropagation();
+      if (!currentReel) return;
+      const hidden = getHiddenShots(currentReel.id);
+      const isHidden = hidden.some(id => id == shotId);
+      const updated = isHidden
+        ? hidden.filter(id => id != shotId)
+        : [...hidden, shotId];
+
+      setHiddenShots(currentReel.id, updated);
+      renderShots(currentReel);
+      updateProgress();
+      showToast(isHidden ? 'Item unhidden' : 'Item moved to Hidden');
+    }
+
     async function renderShots(reel) {
       const container = document.getElementById('shots-container');
+      const hiddenAcc = document.getElementById('hidden-shots-accordion');
+      const hiddenContainer = document.getElementById('hidden-shots-container');
+      const hiddenTitle = document.getElementById('hidden-accordion-title');
       container.innerHTML = '';
+      if (hiddenContainer) hiddenContainer.innerHTML = '';
 
       const isGridMode = detailGridMode;
       container.className = isGridMode ? 'col-grid-3xN' : 'shots-list';
       if (bulkModeContext === 'detail') container.classList.add('bulk-selecting');
 
       const checkedShots = getCheckedShots(reel.id);
+      const hiddenShotsSet = new Set(getHiddenShots(reel.id).map(String));
+      const visibleShots = (reel.shots || []).filter(s => !hiddenShotsSet.has(String(s.id)));
+      const hiddenShots = (reel.shots || []).filter(s => hiddenShotsSet.has(String(s.id)));
       const basePath = reel.reel_json ? reel.reel_json.substring(0, reel.reel_json.lastIndexOf('/') + 1) : 'data/reels/' + reel.id + '/';
 
+      if (hiddenAcc) {
+        hiddenAcc.style.display = hiddenShots.length > 0 ? 'block' : 'none';
+        if (hiddenTitle) hiddenTitle.textContent = `Hidden Items (${hiddenShots.length})`;
+      }
+
       if (isGridMode) {
-        for (const shot of reel.shots) {
+        for (const shot of visibleShots) {
           const isDone = checkedShots.includes(shot.id);
           const bulkKey = `${reel.id}::${shot.id}`;
           const tile = document.createElement('div');
@@ -6069,11 +6223,11 @@
         return;
       }
 
-      for (const shot of reel.shots) {
+      const buildDetailCard = (shot, isHiddenCard) => {
         const isDone = checkedShots.includes(shot.id);
         const bulkKey = `${reel.id}::${shot.id}`;
         const card = document.createElement('article');
-        card.className = `shot-card ${isDone ? 'completed' : ''} ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
+        card.className = `shot-card ${isDone ? 'completed' : ''} ${isHiddenCard ? 'hidden-shot-card' : ''} ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
         card.id = `shot-${shot.id}`;
         card.dataset.bulkKey = bulkKey;
         card.style.order = isDone ? '1' : '0';
@@ -6103,18 +6257,22 @@
               <div class="shot-title-text">${shot.title}</div>
               ${durationHtml}
             </div>
-            <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="if(bulkModeContext!=='detail') openSaveCollectionSheet('${reel.id}', ${shot.id}, event)">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-              </svg>
-            </button>
+            <div class="shot-header-actions">
+              <button class="shot-hide-btn ${isHiddenCard ? 'is-hidden' : ''}" title="${isHiddenCard ? 'Unhide item' : 'Hide item'}" onclick="if(bulkModeContext!=='detail') toggleHideShot(${shot.id}, event)">
+                <span class="material-symbols-rounded" style="font-size: 19px;">${isHiddenCard ? 'visibility' : 'visibility_off'}</span>
+              </button>
+              <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="if(bulkModeContext!=='detail') openSaveCollectionSheet('${reel.id}', ${shot.id}, event)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="shot-media-box">
             ${mediaHtml}
           </div>
           <div class="bulk-check-circle">✓</div>
         `;
-        container.appendChild(card);
 
         const sv = card.querySelector('video');
         if (sv) {
@@ -6138,6 +6296,16 @@
             }
           }
         });
+        return card;
+      };
+
+      for (const shot of visibleShots) {
+        container.appendChild(buildDetailCard(shot, false));
+      }
+      if (hiddenContainer) {
+        for (const shot of hiddenShots) {
+          hiddenContainer.appendChild(buildDetailCard(shot, true));
+        }
       }
 
       // Initialize viewport playback observer
@@ -6226,28 +6394,14 @@
 
     function updateProgress() {
       if (!currentReel) return;
-      const checked = getCheckedShots(currentReel.id);
-      const total = currentReel.total_shots || currentReel.shots.length;
-      const count = checked.length;
-      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+      const rawTotal = currentReel.total_shots || currentReel.shots.length;
+      const { count, visibleTotal: total, pct } = getReelVisibleProgress(currentReel.id, rawTotal);
       const unitLabel = isCarouselItem(currentReel) ? 'Photos' : 'Shots';
 
       document.getElementById('counter-text').textContent = `${count} / ${total} ${unitLabel} (${pct}%)`;
       document.getElementById('detail-progress-fill').style.width = `${pct}%`;
 
-      // Sync live progress label on the Feed & Grid cards
-      const feedProgressEl = document.querySelector(`[data-reel-progress="${currentReel.id}"]`);
-      if (feedProgressEl) {
-        feedProgressEl.textContent = `${count}/${total} | ${pct}% Done`;
-        feedProgressEl.classList.toggle('done', pct === 100);
-        feedProgressEl.classList.toggle('partial', count > 0 && pct < 100);
-      }
-      const gridProgressEl = document.querySelector(`[data-grid-progress="${currentReel.id}"]`);
-      if (gridProgressEl) {
-        gridProgressEl.textContent = `${pct}%`;
-        gridProgressEl.classList.toggle('done', pct === 100);
-        gridProgressEl.classList.toggle('partial', count > 0 && pct < 100);
-      }
+      syncReelProgressIndicators(currentReel.id);
       renderCollectionsGrid();
     }
 
