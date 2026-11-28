@@ -2151,9 +2151,13 @@
           <span>📚 Master Reel Library</span>
           <span id="library-count-badge" style="font-size: 12px; color: var(--text-muted); font-weight: 500;">(0 available)</span>
         </div>
-        <div style="display: flex; gap: 8px;">
-          <a href="manage.html" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; text-decoration: none;">⚙️ Manage</a>
-          <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 13px; border-radius: 20px;" onclick="closeLibraryModal()">✕ Done</button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <a href="manage.html" class="btn btn-secondary" title="Manage Library" aria-label="Manage Library" style="width: 36px; height: 36px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+            <span class="material-symbols-rounded" style="font-size: 20px;">settings</span>
+          </a>
+          <button class="btn btn-secondary" title="Done" aria-label="Done" style="width: 36px; height: 36px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;" onclick="closeLibraryModal()">
+            <span class="material-symbols-rounded" style="font-size: 20px;">check</span>
+          </button>
         </div>
       </div>
 
