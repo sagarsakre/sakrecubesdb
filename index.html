@@ -2077,11 +2077,16 @@
     }
 
     /* 3xN Static Collection Items Grid & Photos-App Bulk Selection */
+    @keyframes gridMorphIn {
+      0% { opacity: 0.4; transform: scale(1.06); }
+      100% { opacity: 1; transform: scale(1); }
+    }
     .col-grid-3xN {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 6px;
       padding-bottom: 90px;
+      animation: gridMorphIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .col-grid-tile {
       position: relative;
@@ -2338,10 +2343,6 @@
           <!-- Size Badge: Shows MB or offline indicator when downloaded -->
           <span class="reel-size-pill" id="detail-size-badge" style="display: none;"></span>
 
-          <button class="btn btn-secondary" id="detail-select-btn" style="padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="toggleBulkSelectMode('detail')">
-            ☑️ Select
-          </button>
-
           <!-- Single Options Button -->
           <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="openOptionsModal()">
             ⚙️ Options
@@ -2390,16 +2391,13 @@
         <button class="back-btn" onclick="showHomeView()">← Collections</button>
         
         <div class="detail-nav-actions">
-          <button class="btn btn-secondary" id="col-select-btn" style="padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="toggleBulkSelectMode('collection')">
-            ☑️ Select
-          </button>
-          <button class="btn btn-secondary" id="col-fav-toggle-btn" style="padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 5px;" onclick="toggleFavoriteForActiveCollection()">
-            <svg id="col-fav-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button class="btn btn-secondary" id="col-fav-toggle-btn" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;" onclick="toggleFavoriteForActiveCollection()">
+            <svg id="col-fav-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
-            <span id="col-fav-btn-text">Fav</span>
+            <span id="col-fav-btn-text">Favorite</span>
           </button>
-          <button class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="openCollectionOptionsMenu()">
+          <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="openCollectionOptionsMenu()">
             ⚙️ Manage
           </button>
         </div>
@@ -2413,8 +2411,8 @@
         <div class="detail-sub-title" id="col-view-subtitle">Saved inspiration clips from your reels</div>
       </div>
 
-      <!-- Collection 3xN Static Grid -->
-      <div class="col-grid-3xN" id="col-shots-container">
+      <!-- Collection Shot Cards List (Full View by default, morphs to 3xN Grid on long-press) -->
+      <div class="shots-list" id="col-shots-container">
         <!-- Injected via JavaScript -->
       </div>
     </section>
@@ -3890,24 +3888,85 @@
       openCollectionView(newCol.id);
     }
 
-    /* Collection View (3xN Static Grid + Photos-App Bulk Selection) */
+    /* Collection View & Detail View (Full 1-per-row by default, morphs to 3xN Grid on long-press) */
     let activeCollectionId = null;
     let bulkModeContext = null; // 'collection' | 'detail' | null
     let bulkSelectedKeys = new Set(); // "reelId::shotId"
+
+    function attachCardLongPress(el, context, bulkKey) {
+      let timer = null;
+      let startX = 0;
+      let startY = 0;
+
+      const onStart = (e) => {
+        if (bulkModeContext !== null) return;
+        const pt = e.touches ? e.touches[0] : e;
+        startX = pt.clientX;
+        startY = pt.clientY;
+        timer = setTimeout(() => {
+          timer = null;
+          if (navigator.vibrate) navigator.vibrate(15);
+          enterGridBulkSelect(context, bulkKey);
+        }, 420);
+      };
+      const onCancel = () => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      };
+      const onMove = (e) => {
+        if (!timer) return;
+        const pt = e.touches ? e.touches[0] : e;
+        if (Math.abs(pt.clientX - startX) > 10 || Math.abs(pt.clientY - startY) > 10) {
+          onCancel();
+        }
+      };
+
+      el.addEventListener('touchstart', onStart, { passive: true });
+      el.addEventListener('touchmove', onMove, { passive: true });
+      el.addEventListener('touchend', onCancel, { passive: true });
+      el.addEventListener('touchcancel', onCancel, { passive: true });
+      el.addEventListener('mousedown', (e) => { if (e.button === 0) onStart(e); });
+      el.addEventListener('mousemove', onMove);
+      el.addEventListener('mouseup', onCancel);
+      el.addEventListener('mouseleave', onCancel);
+    }
+
+    function enterGridBulkSelect(context, initialKey = null) {
+      bulkModeContext = context;
+      bulkSelectedKeys.clear();
+      if (initialKey) bulkSelectedKeys.add(initialKey);
+
+      if (context === 'collection' && activeCollectionId) {
+        const col = getCollections().find(c => c.id === activeCollectionId);
+        if (col) renderCollectionShots(col);
+      } else if (context === 'detail' && currentReel) {
+        renderShots(currentReel);
+      }
+      applyBulkModeUI();
+    }
 
     function toggleBulkSelectMode(context, forceOn = false) {
       if (bulkModeContext === context && !forceOn) {
         exitBulkSelectMode();
         return;
       }
-      bulkModeContext = context;
-      bulkSelectedKeys.clear();
-      applyBulkModeUI();
+      enterGridBulkSelect(context, null);
     }
 
-    function exitBulkSelectMode() {
+    function exitBulkSelectMode(skipRerender = false) {
+      const prevContext = bulkModeContext;
       bulkModeContext = null;
       bulkSelectedKeys.clear();
+      if (!skipRerender && prevContext) {
+        if (prevContext === 'collection' && activeCollectionId) {
+          const col = getCollections().find(c => c.id === activeCollectionId);
+          if (col) renderCollectionShots(col);
+        } else if (prevContext === 'detail' && currentReel) {
+          renderShots(currentReel);
+        }
+      }
       applyBulkModeUI();
     }
 
@@ -3915,8 +3974,6 @@
       const colContainer = document.getElementById('col-shots-container');
       const detailContainer = document.getElementById('shots-container');
       const bar = document.getElementById('bulk-action-bar');
-      const colBtn = document.getElementById('col-select-btn');
-      const detBtn = document.getElementById('detail-select-btn');
       const removeBtn = document.getElementById('bulk-remove-col-btn');
 
       if (colContainer) {
@@ -3927,14 +3984,11 @@
       }
       if (detailContainer) {
         detailContainer.classList.toggle('bulk-selecting', bulkModeContext === 'detail');
-        detailContainer.querySelectorAll('.shot-card').forEach(card => {
-          card.classList.toggle('bulk-selectable', bulkModeContext === 'detail');
-          card.classList.toggle('bulk-selected', bulkSelectedKeys.has(card.dataset.bulkKey));
+        detailContainer.querySelectorAll('.col-grid-tile').forEach(tile => {
+          tile.classList.toggle('bulk-selected', bulkSelectedKeys.has(tile.dataset.bulkKey));
         });
       }
 
-      if (colBtn) colBtn.textContent = bulkModeContext === 'collection' ? '✕ Cancel' : '☑️ Select';
-      if (detBtn) detBtn.textContent = bulkModeContext === 'detail' ? '✕ Cancel' : '☑️ Select';
       if (removeBtn) removeBtn.style.display = bulkModeContext === 'collection' ? 'inline-block' : 'none';
       if (bar) bar.classList.toggle('active', bulkModeContext !== null);
 
@@ -4061,7 +4115,7 @@
     }
 
     function openCollectionView(colId) {
-      exitBulkSelectMode();
+      exitBulkSelectMode(true);
       const cols = getCollections();
       const col = cols.find(c => c.id === colId);
       if (!col) return;
@@ -4096,61 +4150,122 @@
       if (!container) return;
       container.innerHTML = '';
 
+      const isGridMode = (bulkModeContext === 'collection');
+      container.className = isGridMode ? 'col-grid-3xN bulk-selecting' : 'shots-list';
+
       const items = col.items || [];
       if (items.length === 0) {
+        container.className = 'shots-list';
         container.innerHTML = `
-          <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--text-muted);">
+          <div style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
             <div style="font-size: 42px; margin-bottom: 12px;">📁</div>
             <h3 style="color: #fff; font-size: 16px; margin-bottom: 6px;">Collection is Empty</h3>
-            <p style="font-size: 13px; line-height: 1.5; margin-bottom: 20px;">Open any reference reel or carousel and tap Select or the 🔖 bookmark icon to add items here.</p>
+            <p style="font-size: 13px; line-height: 1.5; margin-bottom: 20px;">Open any reference reel or carousel and tap the 🔖 bookmark icon (or long-press any card) to add items here.</p>
             <button class="btn btn-secondary" onclick="showHomeView()">← Back to Trip Board</button>
           </div>
         `;
         return;
       }
 
+      if (isGridMode) {
+        for (const item of items) {
+          const bulkKey = `${item.reelId}::${item.shotId}`;
+          const tile = document.createElement('div');
+          tile.className = `col-grid-tile ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
+          tile.id = `col-shot-${item.reelId}-${item.shotId}`;
+          tile.dataset.bulkKey = bulkKey;
+
+          const fullClipUrl = resolveMediaUrl(item.basePath + item.clip);
+          const isImg = isImageClip(item.clip);
+          const badgeText = isImg ? '📸' : (item.duration ? `🎬 ${item.duration}` : '🎬');
+          const mediaHtml = isImg
+            ? `<img src="${fullClipUrl}" loading="eager" alt="${item.title}">`
+            : `<video src="${fullClipUrl}#t=0.1" muted playsinline webkit-playsinline preload="metadata"></video>`;
+
+          tile.innerHTML = `
+            ${mediaHtml}
+            <div class="col-grid-badge">${badgeText}</div>
+            <div class="col-grid-label">${item.title}</div>
+            <div class="bulk-check-circle">✓</div>
+          `;
+
+          tile.onclick = () => toggleBulkItemSelection(bulkKey);
+          container.appendChild(tile);
+
+          getMediaBlob(fullClipUrl).then(blob => {
+            if (blob) {
+              const blobUrl = URL.createObjectURL(blob);
+              const mediaEl = tile.querySelector(isImg ? 'img' : 'video');
+              if (mediaEl) {
+                mediaEl.src = isImg ? blobUrl : `${blobUrl}#t=0.1`;
+              }
+            }
+          });
+        }
+        return;
+      }
+
+      // Default: Full 1-per-row view (long-press any card to morph into 3xN Grid + Bulk Select)
       for (const item of items) {
         const bulkKey = `${item.reelId}::${item.shotId}`;
-        const tile = document.createElement('div');
-        tile.className = `col-grid-tile ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
-        tile.id = `col-shot-${item.reelId}-${item.shotId}`;
-        tile.dataset.bulkKey = bulkKey;
+        const card = document.createElement('article');
+        card.className = 'shot-card';
+        card.id = `col-shot-${item.reelId}-${item.shotId}`;
+        card.dataset.bulkKey = bulkKey;
 
         const fullClipUrl = resolveMediaUrl(item.basePath + item.clip);
         const isImg = isImageClip(item.clip);
-        const badgeText = isImg ? '📸' : (item.duration ? `🎬 ${item.duration}` : '🎬');
+        const durHtml = item.duration ? `<div class="shot-duration-pill">${item.duration}</div>` : '';
         const mediaHtml = isImg
-          ? `<img src="${fullClipUrl}" loading="eager" alt="${item.title}">`
-          : `<video src="${fullClipUrl}#t=0.1" muted playsinline webkit-playsinline preload="metadata"></video>`;
+          ? `<img class="shot-photo-img" src="${fullClipUrl}" loading="lazy" alt="${item.title}">`
+          : `<video class="shot-loop-video" src="${fullClipUrl}" playsinline webkit-playsinline muted loop autoplay preload="auto"></video>`;
 
-        tile.innerHTML = `
-          ${mediaHtml}
-          <div class="col-grid-badge">${badgeText}</div>
-          <div class="col-grid-label">${item.title}</div>
-          <div class="bulk-check-circle">✓</div>
+        card.innerHTML = `
+          <div class="shot-header">
+            <div class="shot-meta" style="flex: 1;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div class="shot-title-text">${item.title}</div>
+                ${durHtml}
+              </div>
+              <div class="scene-reel-badge" onclick="openReelById('${item.reelId}')" title="Open source item">
+                ${isImg ? '📸' : '🎬'} ${item.reelTitle || item.reelId}
+              </div>
+            </div>
+            <button class="shot-save-btn saved" title="Remove from this collection" onclick="removeShotFromCollection('${col.id}', '${item.reelId}', ${item.shotId})">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="shot-media-box">
+            ${mediaHtml}
+          </div>
         `;
+        attachCardLongPress(card, 'collection', bulkKey);
+        container.appendChild(card);
 
-        tile.onclick = () => {
-          if (bulkModeContext === 'collection') {
-            toggleBulkItemSelection(bulkKey);
-          } else {
-            openReelById(item.reelId);
-          }
-        };
+        const cv = card.querySelector('video');
+        if (cv) {
+          cv.playsInline = true;
+          cv.setAttribute('playsinline', '');
+          cv.setAttribute('webkit-playsinline', '');
+          cv.muted = true;
+          cv.defaultMuted = true;
+        }
 
-        container.appendChild(tile);
-
-        // Load from offline IndexedDB if cached
         getMediaBlob(fullClipUrl).then(blob => {
           if (blob) {
             const blobUrl = URL.createObjectURL(blob);
-            const mediaEl = tile.querySelector(isImg ? 'img' : 'video');
+            const mediaEl = card.querySelector(isImg ? 'img' : 'video');
             if (mediaEl) {
-              mediaEl.src = isImg ? blobUrl : `${blobUrl}#t=0.1`;
+              mediaEl.src = blobUrl;
+              if (!isImg) mediaEl.play().catch(() => {});
             }
           }
         });
       }
+
+      setupVideoObserver();
     }
 
     function removeShotFromCollection(colId, reelId, shotId) {
@@ -5312,7 +5427,7 @@
        REEL DETAIL VIEW
        ======================================================================== */
     async function openReel(reelSummary) {
-      exitBulkSelectMode();
+      exitBulkSelectMode(true);
       const fullJsonUrl = resolveMediaUrl(reelSummary.reel_json);
       try {
         const res = await fetch(fullJsonUrl);
@@ -5384,7 +5499,7 @@
     }
 
     function showHomeView() {
-      exitBulkSelectMode();
+      exitBulkSelectMode(true);
       // Pause and unload video player to save memory and stop audio
       const videoPlayer = document.getElementById('detail-video-player');
       if (videoPlayer) {
@@ -5686,8 +5801,49 @@
       const container = document.getElementById('shots-container');
       container.innerHTML = '';
 
+      const isGridMode = (bulkModeContext === 'detail');
+      container.className = isGridMode ? 'col-grid-3xN bulk-selecting' : 'shots-list';
+
       const checkedShots = getCheckedShots(reel.id);
       const basePath = reel.reel_json ? reel.reel_json.substring(0, reel.reel_json.lastIndexOf('/') + 1) : 'data/reels/' + reel.id + '/';
+
+      if (isGridMode) {
+        for (const shot of reel.shots) {
+          const bulkKey = `${reel.id}::${shot.id}`;
+          const tile = document.createElement('div');
+          tile.className = `col-grid-tile ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
+          tile.id = `shot-${shot.id}`;
+          tile.dataset.bulkKey = bulkKey;
+
+          const clipRel = shot.video || shot.clip || shot.image || '';
+          const fullClipUrl = resolveMediaUrl(basePath + clipRel);
+          const isImg = isImageClip(clipRel, shot);
+          const badgeText = isImg ? '📸' : (shot.duration ? `🎬 ${shot.duration}` : '🎬');
+          const mediaHtml = isImg
+            ? `<img id="media-shot-${shot.id}" src="${fullClipUrl}" loading="eager" alt="${shot.title}">`
+            : `<video id="media-shot-${shot.id}" src="${fullClipUrl}#t=0.1" muted playsinline webkit-playsinline preload="metadata"></video>`;
+
+          tile.innerHTML = `
+            ${mediaHtml}
+            <div class="col-grid-badge">${badgeText}</div>
+            <div class="col-grid-label">${shot.title}</div>
+            <div class="bulk-check-circle">✓</div>
+          `;
+          tile.onclick = () => toggleBulkItemSelection(bulkKey);
+          container.appendChild(tile);
+
+          getMediaBlob(fullClipUrl).then(blob => {
+            if (blob) {
+              const blobUrl = URL.createObjectURL(blob);
+              const mediaEl = tile.querySelector(isImg ? 'img' : 'video');
+              if (mediaEl) {
+                mediaEl.src = isImg ? blobUrl : `${blobUrl}#t=0.1`;
+              }
+            }
+          });
+        }
+        return;
+      }
 
       for (const shot of reel.shots) {
         const isDone = checkedShots.includes(shot.id);
@@ -5697,13 +5853,6 @@
         card.id = `shot-${shot.id}`;
         card.dataset.bulkKey = bulkKey;
         card.style.order = isDone ? '1' : '0';
-        card.onclick = (e) => {
-          if (bulkModeContext === 'detail') {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleBulkItemSelection(bulkKey);
-          }
-        };
 
         const clipRel = shot.video || shot.clip || shot.image || '';
         const fullClipUrl = resolveMediaUrl(basePath + clipRel);
@@ -5716,14 +5865,14 @@
 
         card.innerHTML = `
           <div class="shot-header">
-            <div class="shot-check" onclick="if(bulkModeContext!=='detail') toggleShot(${shot.id})">
+            <div class="shot-check" onclick="toggleShot(${shot.id})">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div class="shot-meta" onclick="if(bulkModeContext!=='detail') toggleShot(${shot.id})">
+            <div class="shot-meta" onclick="toggleShot(${shot.id})">
               <div class="shot-title-text">${shot.title}</div>
               ${durationHtml}
             </div>
-            <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="if(bulkModeContext!=='detail') openSaveCollectionSheet('${reel.id}', ${shot.id}, event)">
+            <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="openSaveCollectionSheet('${reel.id}', ${shot.id}, event)">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
               </svg>
@@ -5732,8 +5881,8 @@
           <div class="shot-media-box">
             ${mediaHtml}
           </div>
-          <div class="bulk-check-circle">✓</div>
         `;
+        attachCardLongPress(card, 'detail', bulkKey);
         container.appendChild(card);
 
         const sv = card.querySelector('video');
