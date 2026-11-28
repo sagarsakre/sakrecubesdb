@@ -6259,7 +6259,7 @@
             </div>
             <div class="shot-header-actions">
               <button class="shot-hide-btn ${isHiddenCard ? 'is-hidden' : ''}" title="${isHiddenCard ? 'Unhide item' : 'Hide item'}" onclick="if(bulkModeContext!=='detail') toggleHideShot(${shot.id}, event)">
-                <span class="material-symbols-rounded" style="font-size: 19px;">${isHiddenCard ? 'visibility' : 'visibility_off'}</span>
+                <span class="material-symbols-rounded" style="font-size: 19px;">${isHiddenCard ? 'visibility_off' : 'visibility'}</span>
               </button>
               <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="if(bulkModeContext!=='detail') openSaveCollectionSheet('${reel.id}', ${shot.id}, event)">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
