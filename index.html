@@ -4462,6 +4462,28 @@
       showToast('Select any scene to save to your collection');
     }
 
+    async function toggleReelActive(reelId) {
+      let activeIds = getActiveReelIds();
+      const matching = masterCatalog.filter(r => activeIds.includes(r.id));
+      if (matching.length === 0 && masterCatalog.length > 0) {
+        activeIds = masterCatalog.map(r => r.id);
+      }
+
+      if (activeIds.includes(reelId)) {
+        activeIds = activeIds.filter(id => id !== reelId);
+        await purgeReelMedia(reelId);
+        localStorage.removeItem(`reelshot_checks_${reelId}`);
+        setActiveReelIds(activeIds);
+        await renderActiveBoard();
+        showToast('Removed from Trip Board');
+      } else {
+        activeIds.unshift(reelId);
+        setActiveReelIds(activeIds);
+        await renderActiveBoard();
+        showToast('Added to Trip Board');
+      }
+    }
+
     function handleFeedOptionsToggleTripBoard() {
       const reelId = activeFeedOptionsReelId;
       closeFeedOptionsSheet();
