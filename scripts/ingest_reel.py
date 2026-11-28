@@ -99,6 +99,233 @@ def upload_to_r2(s3, local_path: Path, r2_key: str):
     content_type = get_content_type(local_path)
     s3.upload_file(str(local_path), R2_BUCKET, r2_key, ExtraArgs={"ContentType": content_type})
 
+
+def fetch_instagram_media_info(shortcode: str, ytdlp_bin: str = "yt-dlp"):
+    """Fetch Instagram media JSON via mobile API using cookies (auto-refreshing via Chrome if needed)."""
+    if not shortcode:
+        return None
+    pk = shortcode_to_pk(shortcode)
+    cookie_file = Path("/tmp/ig_cookies.txt")
+
+    def _query():
+        if not cookie_file.exists():
+            return None
+        cmd = [
+            "curl", "-s", "-b", str(cookie_file),
+            "-H", "User-Agent: Instagram 278.0.0.19.115 Android",
+            "-H", "X-IG-App-ID: 936619743392459",
+            f"https://i.instagram.com/api/v1/media/{pk}/info/"
+        ]
+        out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode("utf-8")
+        data = json.loads(out)
+        if data.get("status") == "ok" and data.get("items"):
+            return data["items"][0]
+        return None
+
+    try:
+        item = _query()
+        if item:
+            return item
+    except Exception:
+        pass
+
+    # Refresh cookies from Chrome if missing/expired
+    try:
+        subprocess.run(
+            [ytdlp_bin, "--cookies-from-browser", "chrome", "--cookies", str(cookie_file),
+             "--skip-download", f"https://www.instagram.com/p/{shortcode}/"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20
+        )
+        return _query()
+    except Exception:
+        return None
+
+
+def download_binary_url(url: str, dest: Path):
+    import urllib.request
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=30) as resp, open(dest, "wb") as f:
+        f.write(resp.read())
+
+
+def transcode_h264_aac(src_path: Path, dst_path: Path):
+    cmd = [
+        "ffmpeg", "-y", "-i", str(src_path),
+        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-preset", "fast", "-crf", "22",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+        "-movflags", "+faststart",
+        str(dst_path)
+    ]
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+
+def update_master_catalog_entry(s3, summary_entry: dict):
+    catalog_list = []
+    if s3:
+        try:
+            res = s3.get_object(Bucket=R2_BUCKET, Key="data/reels.json")
+            catalog_list = json.loads(res["Body"].read().decode())
+        except Exception:
+            pass
+
+    if not catalog_list:
+        local_cat = APP_DIR / "data" / "reels.json"
+        if local_cat.exists():
+            try:
+                with open(local_cat) as f:
+                    catalog_list = json.load(f)
+            except Exception:
+                catalog_list = []
+
+    catalog_list = [r for r in catalog_list if r.get("id") != summary_entry["id"]]
+    catalog_list.insert(0, summary_entry)
+    catalog_list.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+
+    if s3:
+        s3.put_object(
+            Bucket=R2_BUCKET,
+            Key="data/reels.json",
+            Body=json.dumps(catalog_list, indent=2).encode(),
+            ContentType="application/json"
+        )
+        print("   ✅ data/reels.json updated on R2!")
+
+    local_cat = APP_DIR / "data" / "reels.json"
+    local_cat.parent.mkdir(parents=True, exist_ok=True)
+    with open(local_cat, "w") as f:
+        json.dump(catalog_list, f, indent=2)
+
+
+def ingest_carousel_post(item_ig: dict, shortcode: str, reel_id: str, title: str, subtitle: str,
+                         full_caption: str, like_count: int, view_count: int, clean_local: bool):
+    carousel_media = item_ig.get("carousel_media") or []
+    if not carousel_media and item_ig.get("media_type") == 1:
+        carousel_media = [item_ig]
+
+    post_type = "carousel" if len(carousel_media) > 1 else "photo"
+    output_dir = APP_DIR / "data" / "reels" / reel_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"📸 Processing {post_type.title()}: {title} (ID: {reel_id}, {len(carousel_media)} slides)")
+
+    shots = []
+    files_to_upload = []
+    for idx, slide in enumerate(carousel_media, start=1):
+        slide_type = slide.get("media_type", 1)
+        candidates = (slide.get("image_versions2") or {}).get("candidates") or []
+        img_url = candidates[0]["url"] if candidates else None
+        vid_versions = slide.get("video_versions") or []
+        vid_url = vid_versions[0]["url"] if (slide_type == 2 and vid_versions) else None
+
+        img_filename = f"slide_{idx:02d}.jpg"
+        img_path = output_dir / img_filename
+        if img_url:
+            download_binary_url(img_url, img_path)
+            files_to_upload.append((img_path, f"data/reels/{reel_id}/{img_filename}"))
+
+        shot_entry = {
+            "id": idx,
+            "title": f"Photo {idx:02d}" if not vid_url else f"Slide {idx:02d} (Video)",
+            "media_type": "video" if vid_url else "image",
+            "image": img_filename,
+            "clip": img_filename,
+            "duration": ""
+        }
+
+        if vid_url:
+            raw_vid = output_dir / f"slide_{idx:02d}_raw.mp4"
+            vid_filename = f"slide_{idx:02d}.mp4"
+            vid_path = output_dir / vid_filename
+            download_binary_url(vid_url, raw_vid)
+            transcode_h264_aac(raw_vid, vid_path)
+            raw_vid.unlink(missing_ok=True)
+            shot_entry["video"] = vid_filename
+            shot_entry["clip"] = vid_filename
+            files_to_upload.append((vid_path, f"data/reels/{reel_id}/{vid_filename}"))
+
+        shots.append(shot_entry)
+        print(f"   [{idx:02d}/{len(carousel_media)}] Saved {shot_entry['clip']}")
+
+    thumb_path = output_dir / "thumbnail.jpg"
+    first_img = output_dir / "slide_01.jpg"
+    if first_img.exists():
+        thumb_path.write_bytes(first_img.read_bytes())
+        files_to_upload.append((thumb_path, f"data/reels/{reel_id}/thumbnail.jpg"))
+
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    all_files = [lp for lp, _ in files_to_upload if lp.exists()]
+    total_bytes = sum(f.stat().st_size for f in all_files)
+    size_mb = round(total_bytes / (1024 * 1024), 1)
+    instagram_url = f"https://www.instagram.com/p/{shortcode}/" if shortcode else ""
+
+    reel_data = {
+        "id": reel_id,
+        "type": post_type,
+        "shortcode": shortcode,
+        "instagram_url": instagram_url,
+        "title": title,
+        "subtitle": subtitle,
+        "caption": full_caption or title,
+        "views": view_count,
+        "view_count": view_count,
+        "like_count": like_count,
+        "thumbnail": "thumbnail.jpg",
+        "total_shots": len(shots),
+        "total_bytes": total_bytes,
+        "size_mb": size_mb,
+        "created_at": now_iso,
+        "shots": shots
+    }
+    reel_json_path = output_dir / "reel.json"
+    with open(reel_json_path, "w") as f:
+        json.dump(reel_data, f, indent=2)
+    files_to_upload.append((reel_json_path, f"data/reels/{reel_id}/reel.json"))
+
+    s3 = get_s3_client()
+    if s3:
+        print("⏳ Uploading carousel assets to Cloudflare R2 CDN...")
+        for i, (lp, rk) in enumerate(files_to_upload, 1):
+            upload_to_r2(s3, lp, rk)
+            print(f"   [{i:02d}/{len(files_to_upload)}] ☁️ Synced to R2: {rk}")
+
+    summary_entry = {
+        "id": reel_id,
+        "type": post_type,
+        "shortcode": shortcode,
+        "instagram_url": instagram_url,
+        "title": title,
+        "subtitle": subtitle,
+        "caption": full_caption or title,
+        "views": view_count,
+        "view_count": view_count,
+        "like_count": like_count,
+        "thumbnail": f"data/reels/{reel_id}/thumbnail.jpg",
+        "reel_json": f"data/reels/{reel_id}/reel.json",
+        "total_shots": len(shots),
+        "total_bytes": total_bytes,
+        "size_mb": size_mb,
+        "created_at": now_iso
+    }
+    update_master_catalog_entry(s3, summary_entry)
+
+    if clean_local:
+        for lp, _ in files_to_upload:
+            if lp.name not in ("reel.json", "thumbnail.jpg"):
+                lp.unlink(missing_ok=True)
+
+    result = {
+        "status": "success",
+        "reel_id": reel_id,
+        "type": post_type,
+        "title": title,
+        "shots_count": len(shots),
+        "total_size": f"{size_mb} MB",
+        "created_at": now_iso,
+        "cdn_url": f"{CDN_PUBLIC_URL}/data/reels/{reel_id}/reel.json"
+    }
+    print(f"\n🎉 SUCCESS: {json.dumps(result, indent=2)}")
+
 def main():
     parser = argparse.ArgumentParser(description="Ingest video reel into ReelShot PWA and sync to Cloudflare R2 CDN")
     parser.add_argument("input", help="Path to input video file (mp4/mov) OR direct video URL (Instagram/YouTube)")
@@ -124,13 +351,42 @@ def main():
     # Check if input is a URL
     if input_target.startswith("http://") or input_target.startswith("https://"):
         print(f"🌐 URL detected: {input_target}")
-        print("⏳ Step 0/5: Downloading video via yt-dlp...")
-        
+
         # Locate yt-dlp binary (standard PATH or ~/.local/bin)
         ytdlp_bin = "yt-dlp"
         user_local_ytdlp = Path.home() / ".local" / "bin" / "yt-dlp"
         if user_local_ytdlp.exists():
             ytdlp_bin = str(user_local_ytdlp)
+
+        # Check if Instagram Carousel or Single Photo first
+        if "instagram.com" in input_target:
+            ig_sc = extract_reel_shortcode(input_target)
+            item_ig = fetch_instagram_media_info(ig_sc, ytdlp_bin)
+            if item_ig and item_ig.get("media_type") in (1, 8):
+                user_obj = item_ig.get("user") or {}
+                uploader = user_obj.get("username") or user_obj.get("full_name") or "creator"
+                desc = (item_ig.get("caption") or {}).get("text") or ""
+                full_caption = desc.strip()
+                caption_lines = [l.strip() for l in desc.splitlines() if l.strip() and not l.strip().startswith("#")]
+                first_caption = re.sub(r'#\w+', '', caption_lines[0]).strip() if caption_lines else ""
+
+                if args.title:
+                    title = args.title.strip()
+                elif first_caption and len(first_caption) >= 4:
+                    title = first_caption[:50].strip()
+                else:
+                    title = f"Post by @{uploader}"
+
+                subtitle = args.subtitle or f"@{uploader}"
+                base_name = re.sub(r'[^a-zA-Z0-9_\-]+', '-', title).strip('-').lower() or "post"
+                reel_id = args.id.strip().lower() if args.id else f"{base_name[:24]}-{ig_sc.lower()}".strip('-')
+                like_count = int(item_ig.get("like_count") or 0)
+                view_count = int(item_ig.get("play_count") or item_ig.get("ig_play_count") or item_ig.get("view_count") or 0)
+
+                ingest_carousel_post(item_ig, ig_sc, reel_id, title, subtitle, full_caption, like_count, view_count, args.clean)
+                return
+
+        print("⏳ Step 0/5: Downloading video via yt-dlp...")
 
         temp_out = f"/tmp/reelshot_dl_{int(datetime.now().timestamp())}.%(ext)s"
         cmd_dl = [ytdlp_bin, input_target, "-o", temp_out, "--print-json"]
@@ -356,6 +612,7 @@ def main():
 
     reel_data = {
         "id": reel_id,
+        "type": "reel",
         "shortcode": shortcode,
         "instagram_url": instagram_url,
         "title": title,
@@ -413,6 +670,7 @@ def main():
         catalog_list = [r for r in catalog_list if r.get("id") != reel_id]
         catalog_list.insert(0, {
             "id": reel_id,
+            "type": "reel",
             "shortcode": shortcode,
             "instagram_url": instagram_url,
             "title": title,

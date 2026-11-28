@@ -257,10 +257,12 @@ def process_one_job():
                 title = res_obj.get("title", shortcode)
                 size_str = res_obj.get("total_size", "")
                 shots = res_obj.get("shots_count", "")
+                post_type = res_obj.get("type", "reel")
             except Exception:
                 title = shortcode
                 size_str = ""
                 shots = ""
+                post_type = "reel"
 
             with conn:
                 conn.execute(
@@ -271,19 +273,20 @@ def process_one_job():
             final_label = reel_label
             if not final_label or final_label.startswith("Reel "):
                 if creator:
-                    final_label = f"{title[:70]} | Reel by @{creator}"
+                    final_label = f"{title[:70]} | {post_type.title()} by @{creator}"
                 else:
                     final_label = title[:70]
             escaped_label = html.escape(final_label)
 
             # Send Telegram success notification matching the requested format
+            unit_lbl = "photos" if post_type in ("carousel", "photo") else "shots"
             msg_lines = [
-                "🟢 Reel ingestion finished on the Pi.",
-                f'Reel: <a href="{clean_url}">{escaped_label}</a>',
+                f"🟢 {post_type.title()} ingestion finished on the Pi.",
+                f'{post_type.title()}: <a href="{clean_url}">{escaped_label}</a>',
                 f"Link: {clean_url}"
             ]
             if size_str and shots:
-                msg_lines.append(f"📦 Size: {size_str} ({shots} shots)")
+                msg_lines.append(f"📦 Size: {size_str} ({shots} {unit_lbl})")
             elif size_str:
                 msg_lines.append(f"📦 Size: {size_str}")
             msg_lines.append("\n⚡ Available on your Trip Board & Library Manager!")

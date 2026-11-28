@@ -504,6 +504,142 @@
       transition: width 0.1s linear;
     }
 
+    /* Instagram-Style Carousel in Feed */
+    .feed-carousel-track {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      touch-action: pan-x pan-y;
+    }
+    .feed-carousel-track::-webkit-scrollbar {
+      display: none;
+    }
+    .feed-carousel-slide {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #020408;
+      position: relative;
+    }
+    .feed-carousel-slide img,
+    .feed-carousel-slide video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .feed-carousel-counter {
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 11px;
+      border-radius: 16px;
+      letter-spacing: 0.4px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    }
+    .feed-carousel-dots {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      margin: 0 auto 10px auto;
+      width: fit-content;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(6px);
+      pointer-events: none;
+    }
+    .feed-carousel-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.35);
+      transition: all 0.2s ease;
+    }
+    .feed-carousel-dot.active {
+      width: 7px;
+      height: 7px;
+      background: #38bdf8;
+      box-shadow: 0 0 6px rgba(56, 189, 248, 0.8);
+    }
+    .feed-carousel-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 16;
+      font-size: 18px;
+      line-height: 1;
+      transition: all 0.16s ease;
+      opacity: 0.78;
+    }
+    .feed-carousel-arrow:hover {
+      opacity: 1;
+      background: rgba(15, 23, 42, 0.92);
+      transform: translateY(-50%) scale(1.08);
+    }
+    .feed-carousel-arrow.prev { left: 10px; }
+    .feed-carousel-arrow.next { right: 10px; }
+    .feed-carousel-arrow.hidden { display: none; }
+
+    .reel-photos-pill {
+      margin-left: auto;
+      background: rgba(56, 189, 248, 0.22);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      color: #bae6fd;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: all 0.16s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .reel-photos-pill:hover {
+      background: rgba(56, 189, 248, 0.4);
+      color: #fff;
+      transform: scale(1.04);
+    }
+    .shot-photo-img {
+      width: 100%;
+      height: auto;
+      max-height: 75vh;
+      object-fit: contain;
+      display: block;
+      background: #000;
+    }
+
     /* ========================================================================
        3xN TRIP BOARD GRID VIEW
        ======================================================================== */
@@ -2387,12 +2523,30 @@
     /* ========================================================================
        MASTER CATALOG & ACTIVE TRIP BOARD STATE
        ======================================================================== */
+    const IS_LOCAL_DEV = (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.protocol === 'file:'
+    );
     const CDN_BASE_URL = 'https://pub-fd6036bfc4d84b359e94558bed250b7c.r2.dev';
 
     function resolveMediaUrl(path) {
       if (!path) return '';
       if (path.startsWith('http://') || path.startsWith('https://')) return path;
-      return `${CDN_BASE_URL}/${path.replace(/^\/+/, '')}`;
+      const clean = path.replace(/^\/+/, '');
+      if (IS_LOCAL_DEV) return clean;
+      return `${CDN_BASE_URL}/${clean}`;
+    }
+
+    function isCarouselItem(item) {
+      if (!item) return false;
+      return item.type === 'carousel' || item.type === 'photo' || (!item.video && !item.resolution);
+    }
+
+    function isImageClip(clipPath, shot) {
+      if (shot && shot.media_type === 'image') return true;
+      if (shot && shot.media_type === 'video') return false;
+      return /\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(clipPath || '');
     }
 
     function formatViews(n) {
@@ -2442,6 +2596,7 @@
     // Debounced Cloud Sync for Collections
     let collectionsSyncTimer = null;
     function pushCollectionsToCloud(cols) {
+      if (IS_LOCAL_DEV) return;
       clearTimeout(collectionsSyncTimer);
       collectionsSyncTimer = setTimeout(async () => {
         try {
@@ -2464,6 +2619,7 @@
     // Debounced Cloud Sync for Trip Board
     let tripBoardSyncTimer = null;
     function pushTripBoardToCloud(ids) {
+      if (IS_LOCAL_DEV) return;
       clearTimeout(tripBoardSyncTimer);
       tripBoardSyncTimer = setTimeout(async () => {
         try {
@@ -3038,11 +3194,17 @@
       // Preview top banner
       const previewEl = document.getElementById('save-sheet-item-preview');
       if (previewEl) {
-        const fullClipUrl = resolveMediaUrl(basePath + shot.clip);
+        const clipRel = shot.video || shot.clip || shot.image || '';
+        const fullClipUrl = resolveMediaUrl(basePath + clipRel);
+        const isImg = isImageClip(clipRel, shot);
+        const thumbHtml = isImg
+          ? `<img class="sheet-preview-thumb" src="${fullClipUrl}" alt="${shot.title}">`
+          : `<video class="sheet-preview-thumb" src="${fullClipUrl}" muted loop autoplay playsinline preload="metadata"></video>`;
+        const durPart = shot.duration ? ` (${shot.duration})` : '';
         previewEl.innerHTML = `
-          <video class="sheet-preview-thumb" src="${fullClipUrl}" muted loop autoplay playsinline preload="metadata"></video>
+          ${thumbHtml}
           <div class="sheet-preview-meta">
-            <div class="sheet-preview-title">${shot.title} (${shot.duration})</div>
+            <div class="sheet-preview-title">${shot.title}${durPart}</div>
             <div class="sheet-preview-sub">Source: ${targetReel.title}</div>
           </div>
         `;
@@ -3261,16 +3423,21 @@
         card.id = `col-shot-${item.reelId}-${item.shotId}`;
 
         const fullClipUrl = resolveMediaUrl(item.basePath + item.clip);
+        const isImg = isImageClip(item.clip);
+        const durHtml = item.duration ? `<div class="shot-duration-pill">${item.duration}</div>` : '';
+        const mediaHtml = isImg
+          ? `<img class="shot-photo-img" src="${fullClipUrl}" loading="lazy" alt="${item.title}">`
+          : `<video class="shot-loop-video" src="${fullClipUrl}" playsinline webkit-playsinline muted loop autoplay preload="auto"></video>`;
 
         card.innerHTML = `
           <div class="shot-header">
             <div class="shot-meta" style="flex: 1;">
               <div style="display: flex; align-items: center; justify-content: space-between;">
                 <div class="shot-title-text">${item.title}</div>
-                <div class="shot-duration-pill">${item.duration}</div>
+                ${durHtml}
               </div>
-              <div class="scene-reel-badge" onclick="openReelById('${item.reelId}')" title="Open source reel">
-                🎬 ${item.reelTitle || item.reelId}
+              <div class="scene-reel-badge" onclick="openReelById('${item.reelId}')" title="Open source item">
+                ${isImg ? '📸' : '🎬'} ${item.reelTitle || item.reelId}
               </div>
             </div>
             <button class="shot-save-btn saved" title="Remove from this collection" onclick="removeShotFromCollection('${col.id}', '${item.reelId}', ${item.shotId})">
@@ -3280,7 +3447,7 @@
             </button>
           </div>
           <div class="shot-media-box">
-            <video class="shot-loop-video" src="${fullClipUrl}" playsinline webkit-playsinline muted loop autoplay preload="auto"></video>
+            ${mediaHtml}
           </div>
         `;
         container.appendChild(card);
@@ -3450,16 +3617,17 @@
       }
     }
 
-    // Load Master Catalog from Cloudflare R2 CDN (fallback to local/offline cache)
+    // Load Master Catalog (Local dev server first when on localhost, otherwise R2 CDN)
     async function loadMasterCatalog() {
       try {
         const cacheBuster = '?t=' + Date.now();
-        const res = await fetch(resolveMediaUrl('data/reels.json') + cacheBuster, { cache: 'no-store' });
+        const catalogUrl = IS_LOCAL_DEV ? ('data/reels.json' + cacheBuster) : (resolveMediaUrl('data/reels.json') + cacheBuster);
+        const res = await fetch(catalogUrl, { cache: 'no-store' });
         if (res.ok) {
           masterCatalog = await res.json();
           localStorage.setItem('reelshot_cached_catalog', JSON.stringify(masterCatalog));
         } else {
-          throw new Error('CDN status ' + res.status);
+          throw new Error('Catalog status ' + res.status);
         }
       } catch (err) {
         const cached = localStorage.getItem('reelshot_cached_catalog');
@@ -3478,11 +3646,13 @@
       // Ensure chronological ordering: newest first
       masterCatalog.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
 
-      // Fetch latest synced Trip Board & Saved Collections from cloud server
-      await Promise.all([
-        loadCloudCollections(),
-        loadCloudTripBoard()
-      ]);
+      if (!IS_LOCAL_DEV) {
+        // Fetch latest synced Trip Board & Saved Collections from cloud server
+        await Promise.all([
+          loadCloudCollections(),
+          loadCloudTripBoard()
+        ]);
+      }
 
       sanitizeCollectionsWithCatalog(masterCatalog);
       renderCollectionsGrid();
@@ -3614,9 +3784,32 @@
 
       feedVideoObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-          const video = entry.target.querySelector('video');
           const reelId = entry.target.dataset.reelId;
           const badge = entry.target.querySelector('.reel-2x-badge');
+          const isCarousel = entry.target.dataset.isCarousel === 'true';
+
+          if (isCarousel) {
+            const slideVideos = entry.target.querySelectorAll('.feed-carousel-slide video');
+            if (entry.isIntersecting) {
+              currentVisibleFeedReelId = reelId;
+              const activeIdx = parseInt(entry.target.dataset.activeSlide || '0', 10);
+              slideVideos.forEach(sv => {
+                const sIdx = parseInt(sv.dataset.slideIdx || '0', 10);
+                if (sIdx === activeIdx) {
+                  sv.muted = isFeedAudioMuted;
+                  sv.defaultMuted = isFeedAudioMuted;
+                  sv.play().catch(() => {});
+                } else {
+                  sv.pause();
+                }
+              });
+            } else {
+              slideVideos.forEach(sv => sv.pause());
+            }
+            return;
+          }
+
+          const video = entry.target.querySelector('video');
           if (!video) return;
 
           // Always ensure any video resets to 1.0x normal speed when scrolling
@@ -3908,9 +4101,12 @@
         item.dataset.reelId = reel.id;
         item.dataset.index = idx;
 
-        const videoUrl = resolveMediaUrl(reel.video || `data/reels/${reel.id}/video.mp4`);
+        const isCarousel = isCarouselItem(reel);
+        item.dataset.isCarousel = isCarousel ? 'true' : 'false';
+        item.dataset.activeSlide = '0';
+
         const thumbUrl = resolveMediaUrl(reel.thumbnail || `data/reels/${reel.id}/thumbnail.jpg`);
-        const totalShots = reel.total_shots || 0;
+        const totalShots = reel.total_shots || 1;
         const creatorHandle = reel.subtitle || '@creator';
         const viewsCount = reel.views || reel.view_count || reel.play_count || 0;
         const likesCount = reel.like_count || 0;
@@ -3921,6 +4117,56 @@
           ? `<span class="reel-likes-pill" title="${likesCount.toLocaleString()} likes">❤️ ${formatViews(likesCount)}</span>`
           : '';
         const captionText = (reel.caption && reel.caption.trim()) ? reel.caption.trim() : reel.title;
+
+        if (isCarousel) {
+          const checkedCount = getCheckedShots(reel.id).length;
+          const photosLabel = totalShots === 1 ? '1 Photo' : `${totalShots} Photos`;
+          const pillText = checkedCount > 0 ? `✓ ${checkedCount}/${totalShots} Photos` : `📸 ${photosLabel}`;
+
+          item.innerHTML = `
+            <div class="feed-carousel-track">
+              <div class="feed-carousel-slide" data-slide-idx="0">
+                <img src="${thumbUrl}" alt="${reel.title}" draggable="false">
+              </div>
+            </div>
+
+            ${totalShots > 1 ? `
+              <button class="feed-carousel-arrow prev hidden" title="Previous photo">‹</button>
+              <button class="feed-carousel-arrow next" title="Next photo">›</button>
+            ` : ''}
+
+            <div class="reel-feed-top-controls">
+              ${totalShots > 1 ? `<span class="feed-carousel-counter">1 / ${totalShots}</span>` : ''}
+              <button class="reel-control-btn" onclick="openReelFeedOptions('${reel.id}', event)" title="Options">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle>
+                </svg>
+              </button>
+            </div>
+
+            <div class="reel-overlay-bottom">
+              ${totalShots > 1 ? `<div class="feed-carousel-dots"></div>` : ''}
+              <div class="reel-creator-row">
+                <div class="reel-creator-avatar">@</div>
+                <span class="reel-creator-name">${creatorHandle}</span>
+                ${viewsBadgeHtml}
+                ${likesBadgeHtml}
+                <span class="reel-photos-pill" onclick="openSplitScenesFromFeed('${reel.id}')">
+                  ${pillText}
+                </span>
+              </div>
+              <div class="reel-caption-text" onclick="this.classList.toggle('expanded')" title="Tap to expand caption">
+                ${captionText}
+              </div>
+            </div>
+          `;
+
+          feedEl.appendChild(item);
+          hydrateFeedCarouselSlides(item, reel);
+          return;
+        }
+
+        const videoUrl = resolveMediaUrl(reel.video || `data/reels/${reel.id}/video.mp4`);
 
         item.innerHTML = `
           <video
@@ -3995,6 +4241,113 @@
       setupFeedIntersectionObserver();
     }
 
+    async function hydrateFeedCarouselSlides(item, reel) {
+      const track = item.querySelector('.feed-carousel-track');
+      if (!track || !reel.reel_json) return;
+
+      try {
+        const res = await fetch(resolveMediaUrl(reel.reel_json));
+        if (!res.ok) return;
+        const fullData = await res.json();
+        const slides = fullData.shots || [];
+        if (slides.length === 0) return;
+
+        const basePath = reel.reel_json.substring(0, reel.reel_json.lastIndexOf('/') + 1);
+        track.innerHTML = '';
+
+        slides.forEach((slide, sIdx) => {
+          const slideEl = document.createElement('div');
+          slideEl.className = 'feed-carousel-slide';
+          slideEl.dataset.slideIdx = sIdx;
+
+          if (slide.media_type === 'video' && (slide.video || slide.clip)) {
+            const vidUrl = resolveMediaUrl(basePath + (slide.video || slide.clip));
+            const posterUrl = slide.image ? resolveMediaUrl(basePath + slide.image) : '';
+            slideEl.innerHTML = `
+              <video src="${vidUrl}" poster="${posterUrl}" data-slide-idx="${sIdx}" loop playsinline webkit-playsinline muted preload="none"></video>
+            `;
+            const sv = slideEl.querySelector('video');
+            if (sv) {
+              sv.playsInline = true;
+              sv.setAttribute('playsinline', '');
+              sv.setAttribute('webkit-playsinline', '');
+              sv.muted = true;
+              sv.defaultMuted = true;
+            }
+          } else {
+            const imgUrl = resolveMediaUrl(basePath + (slide.image || slide.clip));
+            slideEl.innerHTML = `<img src="${imgUrl}" alt="${slide.title || ''}" loading="${sIdx < 2 ? 'eager' : 'lazy'}" draggable="false">`;
+          }
+          track.appendChild(slideEl);
+        });
+
+        // Setup dots, counter, and arrows
+        const dotsWrap = item.querySelector('.feed-carousel-dots');
+        const counterEl = item.querySelector('.feed-carousel-counter');
+        const prevBtn = item.querySelector('.feed-carousel-arrow.prev');
+        const nextBtn = item.querySelector('.feed-carousel-arrow.next');
+        const total = slides.length;
+
+        if (dotsWrap && total > 1) {
+          const maxDots = Math.min(total, 12);
+          dotsWrap.innerHTML = Array.from({ length: maxDots }, (_, i) =>
+            `<span class="feed-carousel-dot ${i === 0 ? 'active' : ''}"></span>`
+          ).join('');
+        }
+
+        const updateSlideUI = (activeIdx) => {
+          item.dataset.activeSlide = String(activeIdx);
+          if (counterEl) counterEl.textContent = `${activeIdx + 1} / ${total}`;
+          if (prevBtn) prevBtn.classList.toggle('hidden', activeIdx <= 0);
+          if (nextBtn) nextBtn.classList.toggle('hidden', activeIdx >= total - 1);
+          if (dotsWrap) {
+            const dots = dotsWrap.querySelectorAll('.feed-carousel-dot');
+            const dotIdx = total <= 12 ? activeIdx : Math.round((activeIdx / (total - 1)) * (dots.length - 1));
+            dots.forEach((d, i) => d.classList.toggle('active', i === dotIdx));
+          }
+          // Play video if active slide is video, pause others
+          track.querySelectorAll('video').forEach(sv => {
+            const sIdx = parseInt(sv.dataset.slideIdx || '0', 10);
+            if (sIdx === activeIdx && item.dataset.reelId === currentVisibleFeedReelId) {
+              sv.muted = isFeedAudioMuted;
+              sv.play().catch(() => {});
+            } else {
+              sv.pause();
+            }
+          });
+        };
+
+        let scrollTimer = null;
+        track.addEventListener('scroll', () => {
+          clearTimeout(scrollTimer);
+          scrollTimer = setTimeout(() => {
+            const w = track.clientWidth || 1;
+            const activeIdx = Math.max(0, Math.min(total - 1, Math.round(track.scrollLeft / w)));
+            updateSlideUI(activeIdx);
+          }, 40);
+        }, { passive: true });
+
+        if (prevBtn) {
+          prevBtn.onclick = (e) => {
+            e.stopPropagation();
+            const cur = parseInt(item.dataset.activeSlide || '0', 10);
+            const target = Math.max(0, cur - 1);
+            track.scrollTo({ left: target * track.clientWidth, behavior: 'smooth' });
+          };
+        }
+        if (nextBtn) {
+          nextBtn.onclick = (e) => {
+            e.stopPropagation();
+            const cur = parseInt(item.dataset.activeSlide || '0', 10);
+            const target = Math.min(total - 1, cur + 1);
+            track.scrollTo({ left: target * track.clientWidth, behavior: 'smooth' });
+          };
+        }
+      } catch (e) {
+        console.warn('Could not hydrate carousel slides:', reel.id, e);
+      }
+    }
+
     function renderTripBoardGrid(reels) {
       const gridEl = document.getElementById('trip-grid-list');
       const countEl = document.getElementById('grid-reels-count');
@@ -4019,11 +4372,15 @@
 
         const thumbUrl = resolveMediaUrl(reel.thumbnail || `data/reels/${reel.id}/thumbnail.jpg`);
         const totalShots = reel.total_shots || 0;
+        const isCarousel = isCarouselItem(reel);
+        const badgeIconSvg = isCarousel
+          ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="13" height="13" rx="2"></rect><path d="M4 17V5a2 2 0 0 1 2-2h12"></path></svg>`
+          : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>`;
 
         card.innerHTML = `
           <img src="${thumbUrl}" alt="${reel.title}" loading="lazy">
           <div class="trip-grid-shots-badge">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
+            ${badgeIconSvg}
             <span>${totalShots}</span>
           </div>
           <div class="trip-grid-info">
@@ -4050,8 +4407,13 @@
       const scenesText = document.getElementById('text-feed-options-scenes');
 
       const shotsCount = reel.total_shots || 0;
-      if (titleEl) titleEl.textContent = reel.title || 'Reel Options';
-      if (scenesText) scenesText.textContent = `View Split Scenes (${shotsCount} ${shotsCount === 1 ? 'scene' : 'scenes'})`;
+      const isCarousel = isCarouselItem(reel);
+      if (titleEl) titleEl.textContent = reel.title || (isCarousel ? 'Carousel Options' : 'Reel Options');
+      if (scenesText) {
+        scenesText.textContent = isCarousel
+          ? `Open Photo Checklist (${shotsCount} ${shotsCount === 1 ? 'photo' : 'photos'})`
+          : `View Split Scenes (${shotsCount} ${shotsCount === 1 ? 'scene' : 'scenes'})`;
+      }
       if (igLinkEl) {
         igLinkEl.href = getReelInstagramUrl(reel);
       }
@@ -4258,28 +4620,37 @@
       document.getElementById('detail-title').textContent = currentReel.title;
       document.getElementById('detail-subtitle').textContent = currentReel.subtitle || '';
 
-      // Setup Full Video Player with Audio
+      // Setup Full Video Player with Audio (hidden for Carousels & Photos)
       const videoContainer = document.getElementById('detail-video-container');
       const videoPlayer = document.getElementById('detail-video-player');
       const basePath = currentReel.reel_json ? currentReel.reel_json.substring(0, currentReel.reel_json.lastIndexOf('/') + 1) : 'data/reels/' + currentReel.id + '/';
 
-      const videoFile = currentReel.video || (reelSummary && reelSummary.video ? reelSummary.video.split('/').pop() : 'video.mp4');
-      const rawVideoUrl = basePath + videoFile;
-      const fullVideoUrl = resolveMediaUrl(rawVideoUrl);
-
-      videoPlayer.playsInline = true;
-      videoPlayer.setAttribute('playsinline', '');
-      videoPlayer.setAttribute('webkit-playsinline', '');
-
-      // Check if video exists in IndexedDB (offline) or stream from Cloudflare R2
-      const cachedVideoBlob = await getMediaBlob(fullVideoUrl) || await getMediaBlob(rawVideoUrl);
-      if (cachedVideoBlob) {
-        videoPlayer.src = URL.createObjectURL(cachedVideoBlob);
+      if (isCarouselItem(currentReel)) {
+        if (videoPlayer) {
+          videoPlayer.pause();
+          videoPlayer.removeAttribute('src');
+          videoPlayer.load();
+        }
+        videoContainer.style.display = 'none';
       } else {
-        videoPlayer.src = fullVideoUrl;
+        const videoFile = currentReel.video || (reelSummary && reelSummary.video ? reelSummary.video.split('/').pop() : 'video.mp4');
+        const rawVideoUrl = basePath + videoFile;
+        const fullVideoUrl = resolveMediaUrl(rawVideoUrl);
+
+        videoPlayer.playsInline = true;
+        videoPlayer.setAttribute('playsinline', '');
+        videoPlayer.setAttribute('webkit-playsinline', '');
+
+        // Check if video exists in IndexedDB (offline) or stream from Cloudflare R2
+        const cachedVideoBlob = await getMediaBlob(fullVideoUrl) || await getMediaBlob(rawVideoUrl);
+        if (cachedVideoBlob) {
+          videoPlayer.src = URL.createObjectURL(cachedVideoBlob);
+        } else {
+          videoPlayer.src = fullVideoUrl;
+        }
+        videoPlayer.load();
+        videoContainer.style.display = 'block';
       }
-      videoPlayer.load();
-      videoContainer.style.display = 'block';
 
       await updateDownloadButtonState();
       await renderShots(currentReel);
@@ -4464,8 +4835,14 @@
         card.id = `shot-${shot.id}`;
         card.style.order = isDone ? '1' : '0';
 
-        const fullClipUrl = resolveMediaUrl(basePath + shot.clip);
+        const clipRel = shot.video || shot.clip || shot.image || '';
+        const fullClipUrl = resolveMediaUrl(basePath + clipRel);
+        const isImg = isImageClip(clipRel, shot);
         const isSaved = getCollectionsForShot(reel.id, shot.id).length > 0;
+        const durationHtml = shot.duration ? `<div class="shot-duration-pill">Duration: ${shot.duration}</div>` : '';
+        const mediaHtml = isImg
+          ? `<img id="media-shot-${shot.id}" class="shot-photo-img" src="${fullClipUrl}" loading="lazy" alt="${shot.title}">`
+          : `<video id="media-shot-${shot.id}" class="shot-loop-video" src="${fullClipUrl}" playsinline webkit-playsinline muted loop autoplay preload="auto"></video>`;
 
         card.innerHTML = `
           <div class="shot-header">
@@ -4474,7 +4851,7 @@
             </div>
             <div class="shot-meta" onclick="toggleShot(${shot.id})">
               <div class="shot-title-text">${shot.title}</div>
-              <div class="shot-duration-pill">Duration: ${shot.duration}</div>
+              ${durationHtml}
             </div>
             <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="openSaveCollectionSheet('${reel.id}', ${shot.id}, event)">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -4483,7 +4860,7 @@
             </button>
           </div>
           <div class="shot-media-box">
-            <video id="media-shot-${shot.id}" class="shot-loop-video" src="${fullClipUrl}" playsinline webkit-playsinline muted loop autoplay preload="auto"></video>
+            ${mediaHtml}
           </div>
         `;
         container.appendChild(card);
@@ -4584,9 +4961,10 @@
       const checked = getCheckedShots(currentReel.id);
       const total = currentReel.total_shots || currentReel.shots.length;
       const count = checked.length;
-      const pct = Math.round((count / total) * 100);
+      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+      const unitLabel = isCarouselItem(currentReel) ? 'Photos' : 'Shots';
 
-      document.getElementById('counter-text').textContent = `${count} / ${total} Shots (${pct}%)`;
+      document.getElementById('counter-text').textContent = `${count} / ${total} ${unitLabel} (${pct}%)`;
       document.getElementById('detail-progress-fill').style.width = `${pct}%`;
     }
 
