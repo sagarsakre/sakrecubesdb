@@ -62,6 +62,14 @@ def extract_reel_shortcode(url: str) -> str:
     m = re.search(r"/(?:reel|reels|p)/([a-zA-Z0-9_-]+)", url)
     return m.group(1) if m else ""
 
+def shortcode_to_pk(shortcode: str) -> str:
+    alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+    pk = 0
+    for c in shortcode:
+        if c in alphabet:
+            pk = pk * 64 + alphabet.index(c)
+    return str(pk)
+
 def get_s3_client():
     if not (R2_ENDPOINT and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY):
         return None
@@ -170,8 +178,28 @@ def main():
         uploader = info.get("uploader") or info.get("channel") or info.get("uploader_id") or ""
         desc = info.get("description") or ""
         full_caption = desc.strip()
-        view_count = int(info.get("view_count") or info.get("play_count") or 0)
+        view_count = int(info.get("view_count") or info.get("play_count") or info.get("ig_play_count") or 0)
         like_count = int(info.get("like_count") or 0)
+
+        # Attempt to fetch exact play_count directly from Instagram API if missing
+        if view_count == 0 and shortcode:
+            try:
+                pk = shortcode_to_pk(shortcode)
+                cmd_ig = [
+                    'curl', '-s',
+                    '-b', '/tmp/ig_cookies.txt',
+                    '-H', 'User-Agent: Instagram 278.0.0.19.115 Android',
+                    '-H', 'X-IG-App-ID: 936619743392459',
+                    f'https://i.instagram.com/api/v1/media/{pk}/info/'
+                ]
+                out_ig = subprocess.check_output(cmd_ig, stderr=subprocess.DEVNULL).decode('utf-8')
+                data_ig = json.loads(out_ig)
+                item_ig = data_ig.get('items', [{}])[0]
+                view_count = int(item_ig.get('play_count') or item_ig.get('ig_play_count') or item_ig.get('view_count') or 0)
+                if like_count == 0:
+                    like_count = int(item_ig.get('like_count') or 0)
+            except Exception:
+                pass
 
         caption_lines = [l.strip() for l in desc.splitlines() if l.strip() and not l.strip().startswith("#")]
         first_caption = caption_lines[0] if caption_lines else ""
