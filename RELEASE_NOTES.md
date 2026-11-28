@@ -5,6 +5,20 @@ From `v7.0` onward, releases follow `major.minor` versioning.
 
 ---
 
+## [v7.4] — 2026-11-28
+### Added
+- **Contextual `1xN` / `3xN` Grid Toggle & Bulk Selection (`index.html`):**
+  - Added a contextual Grid/List toggle icon (`grid_view` ↔ `view_agenda`) inside both **Collections** (`#view-collection`) and **Reel / Carousel Detail** (`#view-detail`) views.
+  - Added a **`Select`** button (visible in `3xN` Grid mode) with Photos-app-style multi-select checkmarks and a floating bottom action bar (`All` / `None`, `+ Collection`, `Remove` in Collections, `Done`).
+- **Whole-Reel / Whole-Carousel Save to Collection:**
+  - Tapping **Save to Collection** in the Feed `⋮` options menu now opens the Save to Collection sheet directly for all split scenes or photos in that item, with partial-save deduplication (`X/Y saved`).
+
+### Changed & Removed
+- **Clean Icon-Only Controls:** Replaced `"Favorite"`, `"Manage"`, and `"Options"` text buttons in Collection and Detail headers with circular Material star and gear icon buttons.
+- **Feed Options Cleanup:** Removed `"Delete Reel from Library"` from the Feed `⋮` options sheet so permanent cloud library deletion stays exclusively in `manage.html`.
+
+---
+
 ## [v7.3] — 2026-11-28
 ### Added
 - **Global Trip Board Offline Sync (`index.html`):**
