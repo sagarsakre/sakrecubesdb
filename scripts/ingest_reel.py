@@ -100,12 +100,20 @@ def upload_to_r2(s3, local_path: Path, r2_key: str):
     s3.upload_file(str(local_path), R2_BUCKET, r2_key, ExtraArgs={"ContentType": content_type})
 
 
+def get_ig_cookie_file() -> Path:
+    """Return the persistent path for Instagram cookies."""
+    env_path = os.getenv("IG_COOKIES_FILE")
+    if env_path:
+        return Path(env_path).expanduser()
+    return APP_DIR / "data" / "ig_cookies.txt"
+
+
 def fetch_instagram_media_info(shortcode: str, ytdlp_bin: str = "yt-dlp"):
     """Fetch Instagram media JSON via mobile API using cookies (auto-refreshing via Chrome if needed)."""
     if not shortcode:
         return None
     pk = shortcode_to_pk(shortcode)
-    cookie_file = Path("/tmp/ig_cookies.txt")
+    cookie_file = get_ig_cookie_file()
 
     def _query():
         if not cookie_file.exists():
@@ -129,8 +137,9 @@ def fetch_instagram_media_info(shortcode: str, ytdlp_bin: str = "yt-dlp"):
     except Exception:
         pass
 
-    # Refresh cookies from Chrome if missing/expired
+    # Refresh cookies from Chrome if missing/expired (works on desktop with Chrome)
     try:
+        cookie_file.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(
             [ytdlp_bin, "--cookies-from-browser", "chrome", "--cookies", str(cookie_file),
              "--skip-download", f"https://www.instagram.com/p/{shortcode}/"],
@@ -393,9 +402,15 @@ def main():
         
         proc_dl = subprocess.run(cmd_dl, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if proc_dl.returncode != 0:
-            print("⚠️ Anonymous download failed, retrying with Chrome browser cookies...")
-            cmd_dl_cookies = [ytdlp_bin, "--cookies-from-browser", "chrome", input_target, "-o", temp_out, "--print-json"]
-            proc_dl = subprocess.run(cmd_dl_cookies, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            cookie_file = get_ig_cookie_file()
+            if cookie_file.exists():
+                print(f"⚠️ Anonymous download failed, retrying with cookies ({cookie_file})...")
+                cmd_dl_cookies = [ytdlp_bin, "--cookies", str(cookie_file), input_target, "-o", temp_out, "--print-json"]
+                proc_dl = subprocess.run(cmd_dl_cookies, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if proc_dl.returncode != 0:
+                print("⚠️ Retrying with Chrome browser cookies...")
+                cmd_dl_chrome = [ytdlp_bin, "--cookies-from-browser", "chrome", input_target, "-o", temp_out, "--print-json"]
+                proc_dl = subprocess.run(cmd_dl_chrome, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if proc_dl.returncode != 0:
                 print(json.dumps({"status": "error", "message": f"yt-dlp download failed: {proc_dl.stderr}"}))
                 sys.exit(1)
@@ -440,20 +455,22 @@ def main():
         # Attempt to fetch exact play_count directly from Instagram API if missing
         if view_count == 0 and shortcode:
             try:
-                pk = shortcode_to_pk(shortcode)
-                cmd_ig = [
-                    'curl', '-s',
-                    '-b', '/tmp/ig_cookies.txt',
-                    '-H', 'User-Agent: Instagram 278.0.0.19.115 Android',
-                    '-H', 'X-IG-App-ID: 936619743392459',
-                    f'https://i.instagram.com/api/v1/media/{pk}/info/'
-                ]
-                out_ig = subprocess.check_output(cmd_ig, stderr=subprocess.DEVNULL).decode('utf-8')
-                data_ig = json.loads(out_ig)
-                item_ig = data_ig.get('items', [{}])[0]
-                view_count = int(item_ig.get('play_count') or item_ig.get('ig_play_count') or item_ig.get('view_count') or 0)
-                if like_count == 0:
-                    like_count = int(item_ig.get('like_count') or 0)
+                cookie_file = get_ig_cookie_file()
+                if cookie_file.exists():
+                    pk = shortcode_to_pk(shortcode)
+                    cmd_ig = [
+                        'curl', '-s',
+                        '-b', str(cookie_file),
+                        '-H', 'User-Agent: Instagram 278.0.0.19.115 Android',
+                        '-H', 'X-IG-App-ID: 936619743392459',
+                        f'https://i.instagram.com/api/v1/media/{pk}/info/'
+                    ]
+                    out_ig = subprocess.check_output(cmd_ig, stderr=subprocess.DEVNULL).decode('utf-8')
+                    data_ig = json.loads(out_ig)
+                    item_ig = data_ig.get('items', [{}])[0]
+                    view_count = int(item_ig.get('play_count') or item_ig.get('ig_play_count') or item_ig.get('view_count') or 0)
+                    if like_count == 0:
+                        like_count = int(item_ig.get('like_count') or 0)
             except Exception:
                 pass
 
