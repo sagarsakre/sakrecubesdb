@@ -516,6 +516,7 @@
       scrollbar-width: none;
       -ms-overflow-style: none;
       touch-action: pan-x pan-y;
+      -webkit-overflow-scrolling: touch;
     }
     .feed-carousel-track::-webkit-scrollbar {
       display: none;
@@ -531,6 +532,8 @@
       justify-content: center;
       background: #020408;
       position: relative;
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
     }
     .feed-carousel-slide img,
     .feed-carousel-slide video {
@@ -540,6 +543,8 @@
       display: block;
       user-select: none;
       -webkit-user-drag: none;
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
     }
     .feed-carousel-counter {
       background: rgba(15, 23, 42, 0.78);
@@ -4276,7 +4281,13 @@
             }
           } else {
             const imgUrl = resolveMediaUrl(basePath + (slide.image || slide.clip));
-            slideEl.innerHTML = `<img src="${imgUrl}" alt="${slide.title || ''}" loading="${sIdx < 2 ? 'eager' : 'lazy'}" draggable="false">`;
+            slideEl.innerHTML = `<img src="${imgUrl}" alt="${slide.title || ''}" loading="eager" decoding="async" draggable="false">`;
+            const imgEl = slideEl.querySelector('img');
+            if (imgEl && imgEl.decode) {
+              imgEl.addEventListener('load', () => {
+                imgEl.decode().catch(() => {});
+              }, { once: true });
+            }
           }
           track.appendChild(slideEl);
         });
