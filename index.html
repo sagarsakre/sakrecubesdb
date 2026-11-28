@@ -2009,9 +2009,9 @@
       transform: scale(1.06);
     }
     .board-sync-btn.state-synced {
-      color: #34d399;
-      border-color: rgba(52, 211, 153, 0.4);
-      background: rgba(52, 211, 153, 0.12);
+      color: rgba(110, 231, 183, 0.85);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.14);
     }
     .board-sync-btn.state-needs-sync {
       color: #fbbf24;
@@ -2041,10 +2041,11 @@
       transition: stroke-dashoffset 0.2s linear;
     }
     .board-sync-counter {
-      font-size: 9px;
+      font-size: 9px !important;
       font-weight: 800;
       color: #fff;
-      letter-spacing: -0.3px;
+      letter-spacing: -0.4px;
+      line-height: 1;
     }
     .sync-summary-card {
       background: rgba(255, 255, 255, 0.04);
@@ -4964,7 +4965,8 @@
 
       if (info.state === 'synced') {
         btn.classList.add('state-synced');
-        inner.textContent = 'check_circle';
+        inner.style.fontSize = '18px';
+        inner.textContent = 'check';
         btn.title = `All ${info.activeReels.length} items (${info.totalMb} MB) saved offline`;
       } else if (info.state === 'needs_sync') {
         btn.classList.add('state-needs-sync');
@@ -5068,6 +5070,7 @@
       btn.classList.remove('state-synced', 'state-needs-sync');
       btn.classList.add('state-downloading');
       inner.className = 'board-sync-counter';
+      inner.style.fontSize = '';
 
       // 1. Purge removed items first
       for (const staleId of info.staleIds) {
