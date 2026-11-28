@@ -5,6 +5,24 @@ From `v7.0` onward, releases follow `major.minor` versioning.
 
 ---
 
+## [v7.2] — 2026-11-28
+### Added
+- **Instagram Carousel & Single Photo Support (UI + Pipeline):**
+  - **Feed Carousel Viewer (`index.html`):** Horizontal swipeable carousel track with `scroll-snap-type: x mandatory`, desktop prev/next arrows, slide counter (`1 / N`), pagination dots, `📸 N Photos` pill, and autoplay for mixed video slides.
+  - **Photo Checklist Detail View:** Opens carousels/photos without the Reference Video player, supporting tick-mark completion (`0 / N Photos`) and Save to Collection bookmarks with image previews.
+  - **3xN Grid & Collections Support:** Displays stacked-cards carousel badges with photo counts in the Grid and renders saved carousel photos as `<img>` in Collections.
+  - **Ingestion Pipeline (`scripts/ingest_reel.py` & `scripts/queue_manager.py`):** Auto-detects Instagram carousels (`media_type == 8`) and single photos (`media_type == 1`), downloads slides, transcodes mixed-carousel video slides to iOS-compatible H.264+AAC, and syncs to Cloudflare R2.
+- **Home & Grid Tick Progress Indicators:**
+  - Added live `X/Y | Z% Done` progress indicator below the `✂️ Scenes` / `📸 Photos` pill on Feed cards.
+  - Added completion percentage (`50%`) below the scene/photo count badge on 3xN Grid cards.
+
+### Changed & Fixed
+- **iOS WebKit Carousel & Modal Image Rendering:** Forced GPU layer compositing (`translateZ(0)`) and eager image decoding for carousel slides and Library/Sheet modal thumbnails so images render cleanly on iPhone Safari.
+- **Trip Board Removal (`toggleReelActive`):** Implemented `toggleReelActive()` so "Remove from Trip Board" in the Feed options menu removes the item, purges its offline cache, and syncs to R2.
+- **Header & Library UI Polish:** Replaced `Manage`/`Done` text buttons in the Library modal with Material gear and checkmark icon buttons, and removed the redundant gear icon from the main top header.
+
+---
+
 ## [v7.1] — 2026-11-28
 ### Added
 - **Exact Instagram Metrics (`play_count` + `like_count`):** Updated `scripts/ingest_reel.py` with `shortcode_to_pk()` and Instagram media info API extraction to capture real reel view counts (`play_count` / `ig_play_count`) alongside `like_count`.
