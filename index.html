@@ -443,6 +443,33 @@
       color: #fff;
       transform: scale(1.04);
     }
+    .reel-scenes-stack {
+      margin-left: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+    .reel-scenes-stack .reel-scenes-pill,
+    .reel-scenes-stack .reel-photos-pill {
+      margin-left: 0;
+    }
+    .reel-tick-progress {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: rgba(226, 232, 240, 0.85);
+      letter-spacing: 0.2px;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+      cursor: pointer;
+      padding-right: 2px;
+    }
+    .reel-tick-progress.partial {
+      color: #fbbf24;
+    }
+    .reel-tick-progress.done {
+      color: #34d399;
+    }
     .reel-views-pill,
     .reel-likes-pill {
       font-size: 11px;
@@ -4126,11 +4153,13 @@
           ? `<span class="reel-likes-pill" title="${likesCount.toLocaleString()} likes">❤️ ${formatViews(likesCount)}</span>`
           : '';
         const captionText = (reel.caption && reel.caption.trim()) ? reel.caption.trim() : reel.title;
+        const checkedCount = getCheckedShots(reel.id).length;
+        const progressPct = totalShots > 0 ? Math.round((checkedCount / totalShots) * 100) : 0;
+        const progressClass = progressPct === 100 ? 'done' : (checkedCount > 0 ? 'partial' : '');
+        const progressHtml = `<span class="reel-tick-progress ${progressClass}" data-reel-progress="${reel.id}" onclick="openSplitScenesFromFeed('${reel.id}')">${checkedCount}/${totalShots} | ${progressPct}% Done</span>`;
 
         if (isCarousel) {
-          const checkedCount = getCheckedShots(reel.id).length;
           const photosLabel = totalShots === 1 ? '1 Photo' : `${totalShots} Photos`;
-          const pillText = checkedCount > 0 ? `✓ ${checkedCount}/${totalShots} Photos` : `📸 ${photosLabel}`;
 
           item.innerHTML = `
             <div class="feed-carousel-track">
@@ -4160,9 +4189,12 @@
                 <span class="reel-creator-name">${creatorHandle}</span>
                 ${viewsBadgeHtml}
                 ${likesBadgeHtml}
-                <span class="reel-photos-pill" onclick="openSplitScenesFromFeed('${reel.id}')">
-                  ${pillText}
-                </span>
+                <div class="reel-scenes-stack">
+                  <span class="reel-photos-pill" onclick="openSplitScenesFromFeed('${reel.id}')">
+                    📸 ${photosLabel}
+                  </span>
+                  ${progressHtml}
+                </div>
               </div>
               <div class="reel-caption-text" onclick="this.classList.toggle('expanded')" title="Tap to expand caption">
                 ${captionText}
@@ -4213,9 +4245,12 @@
               <span class="reel-creator-name">${creatorHandle}</span>
               ${viewsBadgeHtml}
               ${likesBadgeHtml}
-              <span class="reel-scenes-pill" onclick="openSplitScenesFromFeed('${reel.id}')">
-                ✂️ ${totalShots} Scenes
-              </span>
+              <div class="reel-scenes-stack">
+                <span class="reel-scenes-pill" onclick="openSplitScenesFromFeed('${reel.id}')">
+                  ✂️ ${totalShots} ${totalShots === 1 ? 'Scene' : 'Scenes'}
+                </span>
+                ${progressHtml}
+              </div>
             </div>
             <div class="reel-caption-text" onclick="this.classList.toggle('expanded')" title="Tap to expand caption">
               ${captionText}
@@ -5004,6 +5039,14 @@
 
       document.getElementById('counter-text').textContent = `${count} / ${total} ${unitLabel} (${pct}%)`;
       document.getElementById('detail-progress-fill').style.width = `${pct}%`;
+
+      // Sync live progress label on the Feed card
+      const feedProgressEl = document.querySelector(`[data-reel-progress="${currentReel.id}"]`);
+      if (feedProgressEl) {
+        feedProgressEl.textContent = `${count}/${total} | ${pct}% Done`;
+        feedProgressEl.classList.toggle('done', pct === 100);
+        feedProgressEl.classList.toggle('partial', count > 0 && pct < 100);
+      }
     }
 
     /* ========================================================================
