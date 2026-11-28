@@ -1940,7 +1940,7 @@
           </span>
         </div>
         <div class="reel-video-wrapper">
-          <video id="detail-video-player" playsinline controls preload="metadata"></video>
+          <video id="detail-video-player" playsinline webkit-playsinline controls preload="metadata"></video>
         </div>
       </div>
 
@@ -3277,10 +3277,19 @@
             </button>
           </div>
           <div class="shot-media-box">
-            <video class="shot-loop-video" src="${fullClipUrl}" playsinline muted loop autoplay preload="auto"></video>
+            <video class="shot-loop-video" src="${fullClipUrl}" playsinline webkit-playsinline muted loop autoplay preload="auto"></video>
           </div>
         `;
         container.appendChild(card);
+
+        const cv = card.querySelector('video');
+        if (cv) {
+          cv.playsInline = true;
+          cv.setAttribute('playsinline', '');
+          cv.setAttribute('webkit-playsinline', '');
+          cv.muted = true;
+          cv.defaultMuted = true;
+        }
 
         // Offline blob playback if cached
         getMediaBlob(fullClipUrl).then(blob => {
@@ -3613,16 +3622,20 @@
 
           if (entry.isIntersecting) {
             currentVisibleFeedReelId = reelId;
+            video.playsInline = true;
+            video.setAttribute('playsinline', '');
+            video.setAttribute('webkit-playsinline', '');
             video.muted = isFeedAudioMuted;
+            video.defaultMuted = isFeedAudioMuted;
             const playPromise = video.play();
             if (playPromise !== undefined) {
               playPromise.catch(() => {
-                if (!video.muted) {
-                  video.muted = true;
-                  isFeedAudioMuted = true;
-                  updateFeedAudioIcons();
-                  video.play().catch(() => {});
-                }
+                video.muted = true;
+                video.defaultMuted = true;
+                isFeedAudioMuted = true;
+                updateFeedAudioIcons();
+                const p2 = video.play();
+                if (p2 !== undefined) p2.catch(() => {});
               });
             }
           } else {
@@ -3914,7 +3927,7 @@
             playsinline
             webkit-playsinline
             preload="${idx < 2 ? 'auto' : 'metadata'}"
-            ${isFeedAudioMuted ? 'muted' : ''}
+            muted
           ></video>
 
           <div class="reel-center-feedback"></div>
@@ -3956,6 +3969,14 @@
         `;
 
         attachReelFeedGestures(item, reel);
+        const fv = item.querySelector('video');
+        if (fv) {
+          fv.playsInline = true;
+          fv.setAttribute('playsinline', '');
+          fv.setAttribute('webkit-playsinline', '');
+          fv.muted = isFeedAudioMuted;
+          fv.defaultMuted = isFeedAudioMuted;
+        }
         feedEl.appendChild(item);
 
         getMediaBlob(videoUrl).then(blob => {
@@ -4242,15 +4263,19 @@
       const rawVideoUrl = basePath + videoFile;
       const fullVideoUrl = resolveMediaUrl(rawVideoUrl);
 
+      videoPlayer.playsInline = true;
+      videoPlayer.setAttribute('playsinline', '');
+      videoPlayer.setAttribute('webkit-playsinline', '');
+
       // Check if video exists in IndexedDB (offline) or stream from Cloudflare R2
       const cachedVideoBlob = await getMediaBlob(fullVideoUrl) || await getMediaBlob(rawVideoUrl);
       if (cachedVideoBlob) {
         videoPlayer.src = URL.createObjectURL(cachedVideoBlob);
-        videoContainer.style.display = 'block';
       } else {
         videoPlayer.src = fullVideoUrl;
-        videoContainer.style.display = 'block';
       }
+      videoPlayer.load();
+      videoContainer.style.display = 'block';
 
       await updateDownloadButtonState();
       await renderShots(currentReel);
@@ -4454,10 +4479,19 @@
             </button>
           </div>
           <div class="shot-media-box">
-            <video id="media-shot-${shot.id}" class="shot-loop-video" src="${fullClipUrl}" playsinline muted loop autoplay preload="auto"></video>
+            <video id="media-shot-${shot.id}" class="shot-loop-video" src="${fullClipUrl}" playsinline webkit-playsinline muted loop autoplay preload="auto"></video>
           </div>
         `;
         container.appendChild(card);
+
+        const sv = card.querySelector('video');
+        if (sv) {
+          sv.playsInline = true;
+          sv.setAttribute('playsinline', '');
+          sv.setAttribute('webkit-playsinline', '');
+          sv.muted = true;
+          sv.defaultMuted = true;
+        }
 
         getMediaBlob(fullClipUrl).then(blob => {
           if (blob) {
@@ -4487,8 +4521,12 @@
         for (const entry of entries) {
           const video = entry.target;
           if (entry.isIntersecting) {
+            video.muted = true;
+            video.defaultMuted = true;
+            video.playsInline = true;
             if (video.paused) {
-              video.play().catch(() => {});
+              const p = video.play();
+              if (p !== undefined) p.catch(() => {});
             }
           } else {
             if (!video.paused) {
@@ -4615,6 +4653,34 @@
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2800);
     }
+
+    // iOS Safari / WebKit media unlock on user gesture
+    function initIOSMediaUnlock() {
+      const unlock = () => {
+        document.removeEventListener('touchstart', unlock, true);
+        document.removeEventListener('touchend', unlock, true);
+        document.removeEventListener('click', unlock, true);
+
+        // Resume active feed video if paused
+        const activeFeedVideo = document.querySelector('.reel-feed-item.active video') || document.querySelector('#view-feed video');
+        if (activeFeedVideo && activeFeedVideo.paused) {
+          activeFeedVideo.muted = isFeedAudioMuted;
+          const p = activeFeedVideo.play();
+          if (p !== undefined) {
+            p.catch(() => {
+              activeFeedVideo.muted = true;
+              isFeedAudioMuted = true;
+              updateFeedAudioIcons();
+              activeFeedVideo.play().catch(() => {});
+            });
+          }
+        }
+      };
+      document.addEventListener('touchstart', unlock, { capture: true, once: true });
+      document.addEventListener('touchend', unlock, { capture: true, once: true });
+      document.addEventListener('click', unlock, { capture: true, once: true });
+    }
+    initIOSMediaUnlock();
 
     loadMasterCatalog();
 

@@ -270,16 +270,17 @@ def main():
         str(thumb_path)
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
-    # Save full video with faststart streaming flags
+    # Save full video as iOS Safari compatible H.264 (yuv420p) + AAC with +faststart
     video_out = output_dir / "video.mp4"
-    subprocess.run([
-        "ffmpeg", "-y", "-i", video_path,
-        "-c", "copy", "-movflags", "+faststart",
+    cmd_transcode = [
+        "ffmpeg", "-y", "-i", str(video_path),
+        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-preset", "fast", "-crf", "22",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+        "-movflags", "+faststart",
         str(video_out)
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if not video_out.exists():
-        import shutil
-        shutil.copyfile(video_path, str(video_out))
+    ]
+    subprocess.run(cmd_transcode, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
     # 3. Export looping MP4 clips (CRF 23, +faststart, -an)
     target_resolution = args.resolution

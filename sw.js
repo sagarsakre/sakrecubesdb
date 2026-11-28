@@ -1,5 +1,5 @@
-const CACHE_NAME = 'reelshot-shell-v4';
-const MEDIA_CACHE = 'reelshot-media-v4';
+const CACHE_NAME = 'reelshot-shell-v5';
+const MEDIA_CACHE = 'reelshot-media-v5';
 
 const SHELL_ASSETS = [
   './',
@@ -36,7 +36,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 1. Never cache-first for reels.json or query-busted URLs: always network first!
+  // 1. Let video streams (.mp4) pass directly through browser network stack for native iOS Safari HTTP Range support
+  if (url.pathname.endsWith('.mp4')) {
+    return;
+  }
+
+  // 2. Never cache-first for reels.json or query-busted URLs: always network first!
   if (url.pathname.endsWith('reels.json') || url.searchParams.has('t')) {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
@@ -52,9 +57,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Cache-first for heavy media (MP4s, JPGs, PNGs, individual reel.json)
+  // 3. Cache-first for images and metadata (JPGs, PNGs, individual reel.json)
   if (
-    url.pathname.endsWith('.mp4') ||
     url.pathname.endsWith('.jpg') ||
     url.pathname.endsWith('.jpeg') ||
     url.pathname.endsWith('.png') ||
