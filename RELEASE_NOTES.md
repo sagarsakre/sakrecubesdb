@@ -5,6 +5,17 @@ From `v7.0` onward, releases follow `major.minor` versioning.
 
 ---
 
+## [v7.3] — 2026-11-28
+### Added
+- **Global Trip Board Offline Sync (`index.html`):**
+  - Replaced the per-reel download button with a unified header sync button (`#board-sync-btn`) next to the Library button, showing `download` (not cached), circular SVG progress ring with `X/Y` counter (downloading), amber `sync` (Trip Board changed on any device), or subtle `check` (100% synced).
+  - Added the **Trip Board Offline Sync** sheet (`#board-sync-sheet`) displaying total active Trip Board memory (MB), smart diffing (only downloads newly added items and purges removed items), and a **Clear Offline Cache** action.
+- **Checkmark Cloud Sync (`data/checks.json`):**
+  - Synced shot and photo tick-mark progress to Cloudflare R2 (`data/checks.json`) across all devices.
+  - Preserved checkmark progress when items are removed from and later re-added to the Trip Board.
+
+---
+
 ## [v7.2] — 2026-11-28
 ### Added
 - **Instagram Carousel & Single Photo Support (UI + Pipeline):**
