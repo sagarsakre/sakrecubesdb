@@ -702,9 +702,16 @@
       row.className = 'reel-row';
       row.id = `row-${reel.id}`;
 
+      const isCarousel = reel.type === 'carousel' || reel.type === 'photo' || (!reel.video && !reel.resolution);
       const thumbUrl = resolveMediaUrl(reel.thumbnail);
       const videoUrl = resolveMediaUrl(reel.video || `data/reels/${reel.id}/video.mp4`);
       const dateStr = reel.created_at ? new Date(reel.created_at).toLocaleString() : 'N/A';
+      const shotsLabel = isCarousel
+        ? `📸 ${reel.total_shots || 0} ${reel.total_shots === 1 ? 'Photo' : 'Photos'}`
+        : `🎬 ${reel.total_shots || 0} Shots (24 FPS)`;
+      const mediaActionHtml = isCarousel
+        ? `<a class="btn btn-secondary" href="${thumbUrl}" target="_blank" title="Open cover photo">📸 Photo</a>`
+        : `<a class="btn btn-secondary" href="${videoUrl}" target="_blank" title="Open full MP4 with audio">▶ Video</a>`;
 
       row.innerHTML = `
         <img class="reel-thumb-preview" src="${thumbUrl}" alt="${reel.title}" onerror="this.style.opacity='0.3'">
@@ -712,14 +719,14 @@
           <div class="reel-name">${reel.title}</div>
           <div class="reel-id-tag">ID: ${reel.id}</div>
           <div class="reel-meta-info">
-            <span>🎬 ${reel.total_shots || 0} Shots (24 FPS)</span>
+            <span>${shotsLabel}</span>
             ${reel.size_mb ? `<span style="color: #cbd5e1; font-weight: 500;">📦 ${reel.size_mb} MB</span>` : ''}
             <span>📅 ${dateStr}</span>
             ${reel.subtitle ? `<span>📍 ${reel.subtitle}</span>` : ''}
           </div>
         </div>
         <div class="reel-actions">
-          <a class="btn btn-secondary" href="${videoUrl}" target="_blank" title="Open full MP4 with audio">▶ Video</a>
+          ${mediaActionHtml}
           <button class="btn btn-danger" onclick="promptDelete('${reel.id}', '${reel.title.replace(/'/g, "\\'")}')">🗑️ Delete</button>
         </div>
       `;
@@ -830,16 +837,21 @@
       card.id = `scene-card-${shot.id}`;
       card.onclick = () => toggleSceneSelection(shot.id);
 
-      const clipUrl = resolveMediaUrl(basePath + shot.clip);
+      const clipRel = shot.video || shot.clip || shot.image || '';
+      const clipUrl = resolveMediaUrl(basePath + clipRel);
+      const isImg = shot.media_type === 'image' || /\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(clipRel);
+      const mediaHtml = isImg
+        ? `<img src="${clipUrl}" style="width:100%;height:100%;object-fit:cover;" alt="${shot.title}">`
+        : `<video src="${clipUrl}" muted loop playsinline preload="metadata" onmouseenter="this.play().catch(()=>{})" onmouseleave="this.pause()"></video>`;
 
       card.innerHTML = `
         <div class="scene-chk-overlay">✓</div>
         <div class="scene-media-box">
-          <video src="${clipUrl}" muted loop playsinline preload="metadata" onmouseenter="this.play().catch(()=>{})" onmouseleave="this.pause()"></video>
+          ${mediaHtml}
         </div>
         <div class="scene-card-footer">
           <div class="scene-card-title">${shot.title}</div>
-          <div class="scene-card-dur">${shot.duration}</div>
+          <div class="scene-card-dur">${shot.duration || ''}</div>
         </div>
       `;
       grid.appendChild(card);
