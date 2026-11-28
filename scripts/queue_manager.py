@@ -322,7 +322,7 @@ def process_one_job():
                     "To refresh from your Mac:\n"
                     "1. Open Chrome on your Mac and make sure you're logged into Instagram.\n"
                     "2. Run this command in Terminal:\n"
-                    "<code>bash ~/Movies/Edits/\"Reference Reel\"/app/scripts/sync_ig_cookies.sh</code>\n"
+                    "<code>curl -fsSL https://raw.githubusercontent.com/sagarsakre/sakrecubesdb/main/scripts/sync_ig_cookies.sh | bash</code>\n"
                     "3. Re-send the Instagram link here!"
                 )
             fail_msg = (
