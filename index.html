@@ -731,6 +731,23 @@
     }
     .trip-grid-badge-pct.partial { color: #fbbf24; }
     .trip-grid-badge-pct.done { color: #34d399; }
+    .col-cover-progress {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e2e8f0;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 8px;
+      z-index: 4;
+      pointer-events: none;
+    }
+    .col-cover-progress.partial { color: #fbbf24; }
+    .col-cover-progress.done { color: #34d399; }
     .trip-grid-info {
       position: absolute;
       bottom: 0;
@@ -2421,7 +2438,18 @@
         <div class="detail-sub-title" id="col-view-subtitle">Saved inspiration clips from your reels</div>
       </div>
 
-      <!-- Collection Shot Cards List (Full View by default, morphs to 3xN Grid on long-press) -->
+      <!-- Collection Progress Banner -->
+      <div class="counter-banner" id="col-progress-banner">
+        <div class="counter-row">
+          <span>Collection Progress</span>
+          <span class="counter-highlight" id="col-counter-text">0 / 0 Done (0%)</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="col-progress-fill"></div>
+        </div>
+      </div>
+
+      <!-- Collection Shot Cards List (Full View by default, morphs to 3xN Grid on toggle) -->
       <div class="shots-list" id="col-shots-container">
         <!-- Injected via JavaScript -->
       </div>
@@ -3427,11 +3455,29 @@
       });
     }
 
+    function getCollectionProgress(col) {
+      const items = (col && col.items) ? col.items : [];
+      const total = items.length;
+      if (total === 0) return { done: 0, total: 0, pct: 0 };
+      let done = 0;
+      for (const it of items) {
+        const checked = getCheckedShots(it.reelId);
+        if (checked.some(id => id == it.shotId)) done++;
+      }
+      const pct = Math.round((done / total) * 100);
+      return { done, total, pct };
+    }
+
     function renderCollectionCardElement(col) {
       const card = document.createElement('div');
       card.className = `collection-card ${col.isFavorite ? 'is-favorite' : ''}`;
 
       const firstItem = col.items && col.items.length > 0 ? col.items[0] : null;
+      const prog = getCollectionProgress(col);
+      const progClass = prog.pct === 100 ? 'done' : (prog.done > 0 ? 'partial' : '');
+      const progBadgeHtml = prog.total > 0
+        ? `<div class="col-cover-progress ${progClass}">${prog.pct}%</div>`
+        : '';
       let coverHtml = '';
 
       const favIndicatorHtml = col.isFavorite
@@ -3453,6 +3499,7 @@
             ${favIndicatorHtml}
             <button class="col-card-menu-btn" title="Options" onclick="event.stopPropagation(); openCollectionContextMenu('${col.id}')">•••</button>
             <img class="collection-cover-img" id="col-thumb-${col.id}" src="${thumbUrl}" alt="${col.name}" loading="lazy">
+            ${progBadgeHtml}
           </div>
         `;
       } else {
@@ -4125,6 +4172,7 @@
       const count = (col.items || []).length;
       document.getElementById('col-view-count').textContent = `${count} ${count === 1 ? 'clip' : 'clips'}`;
       updateActiveCollectionHeader(col);
+      updateCollectionProgress(col);
 
       renderCollectionShots(col);
 
@@ -4145,6 +4193,7 @@
     }
 
     function renderCollectionShots(col) {
+      updateCollectionProgress(col);
       const container = document.getElementById('col-shots-container');
       if (!container) return;
       container.innerHTML = '';
@@ -4211,13 +4260,15 @@
         return;
       }
 
-      // Default: Full 1xN view
+      // Default: Full 1xN view with direct tick marks
       for (const item of items) {
         const bulkKey = `${item.reelId}::${item.shotId}`;
+        const isDone = getCheckedShots(item.reelId).some(id => id == item.shotId);
         const card = document.createElement('article');
-        card.className = `shot-card ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
+        card.className = `shot-card ${isDone ? 'completed' : ''} ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
         card.id = `col-shot-${item.reelId}-${item.shotId}`;
         card.dataset.bulkKey = bulkKey;
+        card.style.order = isDone ? '1' : '0';
         card.onclick = (e) => {
           if (bulkModeContext === 'collection') {
             e.preventDefault();
@@ -4235,16 +4286,19 @@
 
         card.innerHTML = `
           <div class="shot-header">
-            <div class="shot-meta" style="flex: 1;">
+            <div class="shot-check" onclick="if(bulkModeContext!=='collection') toggleCollectionItemTick('${item.reelId}', ${item.shotId}, event)">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div class="shot-meta" style="flex: 1;" onclick="if(bulkModeContext!=='collection') toggleCollectionItemTick('${item.reelId}', ${item.shotId}, event)">
               <div style="display: flex; align-items: center; justify-content: space-between;">
                 <div class="shot-title-text">${item.title}</div>
                 ${durHtml}
               </div>
-              <div class="scene-reel-badge" onclick="if(bulkModeContext!=='collection') openReelById('${item.reelId}')" title="Open source item">
+              <div class="scene-reel-badge" onclick="if(bulkModeContext!=='collection'){ event.stopPropagation(); openReelById('${item.reelId}'); }" title="Open source item">
                 ${isImg ? '📸' : '🎬'} ${item.reelTitle || item.reelId}
               </div>
             </div>
-            <button class="shot-save-btn saved" title="Remove from this collection" onclick="if(bulkModeContext!=='collection') removeShotFromCollection('${col.id}', '${item.reelId}', ${item.shotId})">
+            <button class="shot-save-btn saved" title="Remove from this collection" onclick="if(bulkModeContext!=='collection'){ event.stopPropagation(); removeShotFromCollection('${col.id}', '${item.reelId}', ${item.shotId}); }">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
               </svg>
@@ -4279,6 +4333,76 @@
       }
 
       setupVideoObserver();
+    }
+
+    function updateCollectionProgress(col) {
+      if (!col) return;
+      const prog = getCollectionProgress(col);
+      const textEl = document.getElementById('col-counter-text');
+      const fillEl = document.getElementById('col-progress-fill');
+      const bannerEl = document.getElementById('col-progress-banner');
+      if (bannerEl) bannerEl.style.display = prog.total > 0 ? 'block' : 'none';
+      if (textEl) textEl.textContent = `${prog.done} / ${prog.total} Done (${prog.pct}%)`;
+      if (fillEl) fillEl.style.width = `${prog.pct}%`;
+    }
+
+    function syncReelProgressIndicators(reelId) {
+      const reel = masterCatalog.find(r => r.id === reelId);
+      if (!reel) return;
+      const count = getCheckedShots(reelId).length;
+      const total = reel.total_shots || 1;
+      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+
+      const feedProgressEl = document.querySelector(`[data-reel-progress="${reelId}"]`);
+      if (feedProgressEl) {
+        feedProgressEl.textContent = `${count}/${total} | ${pct}% Done`;
+        feedProgressEl.classList.toggle('done', pct === 100);
+        feedProgressEl.classList.toggle('partial', count > 0 && pct < 100);
+      }
+      const gridProgressEl = document.querySelector(`[data-grid-progress="${reelId}"]`);
+      if (gridProgressEl) {
+        gridProgressEl.textContent = `${pct}%`;
+        gridProgressEl.classList.toggle('done', pct === 100);
+        gridProgressEl.classList.toggle('partial', count > 0 && pct < 100);
+      }
+    }
+
+    function toggleCollectionItemTick(reelId, shotId, e) {
+      if (e) e.stopPropagation();
+      const checked = getCheckedShots(reelId);
+      const card = document.getElementById(`col-shot-${reelId}-${shotId}`);
+      const isCurrentlyDone = checked.some(id => id == shotId);
+
+      const finishUpdate = (updated) => {
+        setCheckedShots(reelId, updated);
+        syncReelProgressIndicators(reelId);
+        renderCollectionsGrid();
+        if (activeCollectionId) {
+          const col = getCollections().find(c => c.id === activeCollectionId);
+          if (col) updateCollectionProgress(col);
+        }
+      };
+
+      if (isCurrentlyDone) {
+        const updated = checked.filter(id => id != shotId);
+        if (card) {
+          card.classList.remove('completed');
+          card.classList.remove('animating-out');
+          card.style.order = '0';
+        }
+        finishUpdate(updated);
+      } else {
+        const updated = [...checked, shotId];
+        if (card) {
+          card.classList.add('animating-out');
+          setTimeout(() => {
+            card.classList.remove('animating-out');
+            card.classList.add('completed');
+            card.style.order = '1';
+          }, 340);
+        }
+        finishUpdate(updated);
+      }
     }
 
     function removeShotFromCollection(colId, reelId, shotId) {
@@ -6051,6 +6175,7 @@
         gridProgressEl.classList.toggle('done', pct === 100);
         gridProgressEl.classList.toggle('partial', count > 0 && pct < 100);
       }
+      renderCollectionsGrid();
     }
 
     /* ========================================================================

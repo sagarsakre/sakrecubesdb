@@ -1,5 +1,5 @@
-const CACHE_NAME = 'reelshot-shell-v21';
-const MEDIA_CACHE = 'reelshot-media-v21';
+const CACHE_NAME = 'reelshot-shell-v22';
+const MEDIA_CACHE = 'reelshot-media-v22';
 
 const SHELL_ASSETS = [
   './',
