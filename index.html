@@ -3623,16 +3623,16 @@
         : '';
 
       if (firstItem) {
-        const parentReel = masterCatalog.find(r => r.id === firstItem.reelId);
-        const thumbPath = (parentReel && parentReel.thumbnail)
-          ? parentReel.thumbnail
-          : (firstItem.basePath ? (firstItem.basePath.replace(/\/+$/, '') + '/thumbnail.jpg') : `data/reels/${firstItem.reelId}/thumbnail.jpg`);
-        const thumbUrl = resolveMediaUrl(thumbPath);
+        const clipUrl = resolveMediaUrl(firstItem.basePath + firstItem.clip);
+        const isImg = isImageClip(firstItem.clip);
+        const mediaHtml = isImg
+          ? `<img class="collection-cover-img" id="col-thumb-${col.id}" src="${clipUrl}" alt="${col.name}" loading="lazy">`
+          : `<video class="collection-cover-img" id="col-thumb-${col.id}" src="${clipUrl}#t=0.1" muted playsinline webkit-playsinline preload="metadata"></video>`;
         coverHtml = `
           <div class="collection-cover">
             ${favIndicatorHtml}
             <button class="col-card-menu-btn" title="Options" onclick="event.stopPropagation(); openCollectionContextMenu('${col.id}')">•••</button>
-            <img class="collection-cover-img" id="col-thumb-${col.id}" src="${thumbUrl}" alt="${col.name}" loading="lazy">
+            ${mediaHtml}
             ${progBadgeHtml}
           </div>
         `;
@@ -3666,15 +3666,13 @@
       `;
 
       if (firstItem) {
-        const parentReel = masterCatalog.find(r => r.id === firstItem.reelId);
-        const thumbPath = (parentReel && parentReel.thumbnail)
-          ? parentReel.thumbnail
-          : (firstItem.basePath ? (firstItem.basePath.replace(/\/+$/, '') + '/thumbnail.jpg') : `data/reels/${firstItem.reelId}/thumbnail.jpg`);
-        const thumbUrl = resolveMediaUrl(thumbPath);
-        getMediaBlob(thumbUrl).then(blob => {
+        const clipUrl = resolveMediaUrl(firstItem.basePath + firstItem.clip);
+        const isImg = isImageClip(firstItem.clip);
+        getMediaBlob(clipUrl).then(blob => {
           if (blob) {
-            const img = card.querySelector(`#col-thumb-${col.id}`);
-            if (img) img.src = URL.createObjectURL(blob);
+            const blobUrl = URL.createObjectURL(blob);
+            const mediaEl = card.querySelector(`#col-thumb-${col.id}`);
+            if (mediaEl) mediaEl.src = isImg ? blobUrl : `${blobUrl}#t=0.1`;
           }
         });
       }
@@ -3954,12 +3952,11 @@
 
         let thumbHtml = '';
         if (firstItem) {
-          const parentReel = masterCatalog.find(r => r.id === firstItem.reelId);
-          const thumbPath = (parentReel && parentReel.thumbnail)
-            ? parentReel.thumbnail
-            : (firstItem.basePath ? (firstItem.basePath.replace(/\/+$/, '') + '/thumbnail.jpg') : `data/reels/${firstItem.reelId}/thumbnail.jpg`);
-          const thumbUrl = resolveMediaUrl(thumbPath);
-          thumbHtml = `<img id="sheet-col-thumb-${col.id}" src="${thumbUrl}" alt="${col.name}" loading="eager">`;
+          const clipUrl = resolveMediaUrl(firstItem.basePath + firstItem.clip);
+          const isImg = isImageClip(firstItem.clip);
+          thumbHtml = isImg
+            ? `<img id="sheet-col-thumb-${col.id}" src="${clipUrl}" alt="${col.name}" loading="eager">`
+            : `<video id="sheet-col-thumb-${col.id}" src="${clipUrl}#t=0.1" muted playsinline webkit-playsinline preload="metadata"></video>`;
         } else {
           thumbHtml = `<span>📁</span>`;
         }
