@@ -1671,6 +1671,11 @@
       border-color: #f59e0b;
       color: #000;
     }
+    .sheet-col-item.partial-collection .sheet-col-chk {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: #f59e0b;
+      color: #fbbf24;
+    }
 
     /* Master Library Modal Sheet */
     .library-modal {
@@ -3449,6 +3454,94 @@
       sheet.classList.add('active');
     }
 
+    async function openSaveReelToCollectionSheet(reelId) {
+      const summary = masterCatalog.find(r => r.id === reelId);
+      if (!summary) return;
+
+      const basePath = summary.reel_json
+        ? summary.reel_json.substring(0, summary.reel_json.lastIndexOf('/') + 1)
+        : `data/reels/${summary.id}/`;
+      const jsonUrl = resolveMediaUrl(summary.reel_json || `${basePath}reel.json`);
+
+      let fullReel = null;
+      try {
+        const res = await fetch(jsonUrl);
+        if (res.ok) fullReel = await res.json();
+      } catch (e) {
+        const blob = await getMediaBlob(jsonUrl) || await getMediaBlob(basePath + 'reel.json');
+        if (blob) {
+          fullReel = JSON.parse(await blob.text());
+        }
+      }
+
+      if (!fullReel || !Array.isArray(fullReel.shots) || fullReel.shots.length === 0) {
+        showToast('No scenes or photos found to save');
+        return;
+      }
+
+      const nowIso = new Date().toISOString();
+      const items = fullReel.shots.map(shot => ({
+        reelId: summary.id,
+        reelTitle: summary.title,
+        shotId: shot.id,
+        title: shot.title,
+        clip: shot.video || shot.clip || shot.image || '',
+        duration: shot.duration || '',
+        basePath: basePath,
+        addedAt: nowIso
+      }));
+
+      currentSheetTarget = {
+        isWholeReel: true,
+        reelId: summary.id,
+        reelTitle: summary.title,
+        items,
+        totalShots: items.length
+      };
+
+      const previewEl = document.getElementById('save-sheet-item-preview');
+      if (previewEl) {
+        const thumbUrl = resolveMediaUrl(summary.thumbnail || `${basePath}thumbnail.jpg`);
+        const unit = isCarouselItem(summary) ? (items.length === 1 ? 'photo' : 'photos') : (items.length === 1 ? 'scene' : 'scenes');
+        previewEl.innerHTML = `
+          <img class="sheet-preview-thumb" src="${thumbUrl}" alt="${summary.title}">
+          <div class="sheet-preview-meta">
+            <div class="sheet-preview-title">${summary.title}</div>
+            <div class="sheet-preview-sub">All ${items.length} ${unit}</div>
+          </div>
+        `;
+      }
+
+      const inputEl = document.getElementById('new-col-input');
+      if (inputEl) inputEl.value = '';
+
+      renderSheetCollectionsList();
+      const sheet = document.getElementById('save-collection-sheet');
+      if (sheet) sheet.classList.add('active');
+    }
+
+    function toggleWholeReelInCollection(colId, target) {
+      const cols = getCollections();
+      const col = cols.find(c => c.id === colId);
+      if (!col || !target || !target.items) return { action: 'none', count: 0 };
+      if (!col.items) col.items = [];
+
+      const missingItems = target.items.filter(item => !isShotInCollection(col, item.reelId, item.shotId));
+
+      if (missingItems.length === 0) {
+        // All scenes/photos already in this collection -> remove all of this reel's items
+        const targetShotIds = new Set(target.items.map(i => String(i.shotId)));
+        col.items = col.items.filter(i => !(i.reelId === target.reelId && targetShotIds.has(String(i.shotId))));
+        saveCollections(cols);
+        return { action: 'removed', count: target.items.length };
+      } else {
+        // Add only missing scenes/photos (handles partial membership cleanly)
+        missingItems.forEach(item => col.items.unshift(item));
+        saveCollections(cols);
+        return { action: 'added', count: missingItems.length };
+      }
+    }
+
     function closeSaveCollectionSheet() {
       const sheet = document.getElementById('save-collection-sheet');
       sheet.classList.remove('active');
@@ -3479,7 +3572,22 @@
 
       container.innerHTML = '';
       for (const col of cols) {
-        const isSaved = isShotInCollection(col, currentSheetTarget.reelId, currentSheetTarget.shotId);
+        let isSaved = false;
+        let isPartial = false;
+        let partialSub = '';
+
+        if (currentSheetTarget.isWholeReel) {
+          const total = currentSheetTarget.totalShots || 0;
+          const savedCount = (currentSheetTarget.items || []).filter(it => isShotInCollection(col, it.reelId, it.shotId)).length;
+          isSaved = total > 0 && savedCount === total;
+          isPartial = savedCount > 0 && savedCount < total;
+          if (isPartial) {
+            partialSub = ` • ${savedCount}/${total} saved`;
+          }
+        } else {
+          isSaved = isShotInCollection(col, currentSheetTarget.reelId, currentSheetTarget.shotId);
+        }
+
         const firstItem = col.items && col.items.length > 0 ? col.items[0] : null;
 
         let thumbHtml = '';
@@ -3494,10 +3602,10 @@
           thumbHtml = `<span>📁</span>`;
         }
 
-        const countText = col.items ? `${col.items.length} ${col.items.length === 1 ? 'clip' : 'clips'}` : '0 clips';
+        const countText = (col.items ? `${col.items.length} ${col.items.length === 1 ? 'clip' : 'clips'}` : '0 clips') + partialSub;
 
         const row = document.createElement('div');
-        row.className = `sheet-col-item ${isSaved ? 'in-collection' : ''}`;
+        row.className = `sheet-col-item ${isSaved ? 'in-collection' : (isPartial ? 'partial-collection' : '')}`;
         row.onclick = () => handleSheetToggleCol(col.id);
 
         row.innerHTML = `
@@ -3509,7 +3617,7 @@
             <div class="sheet-col-meta">${countText}</div>
           </div>
           <div class="sheet-col-chk">
-            ✓
+            ${isPartial ? '−' : '✓'}
           </div>
         `;
 
@@ -3532,11 +3640,22 @@
 
     function handleSheetToggleCol(colId) {
       if (!currentSheetTarget) return;
-      const wasAdded = toggleShotInCollection(colId, currentSheetTarget);
       const cols = getCollections();
       const col = cols.find(c => c.id === colId);
       const colName = col ? col.name : 'Collection';
 
+      if (currentSheetTarget.isWholeReel) {
+        const res = toggleWholeReelInCollection(colId, currentSheetTarget);
+        renderSheetCollectionsList();
+        if (res.action === 'added') {
+          showToast(`Added ${res.count} ${res.count === 1 ? 'item' : 'items'} to "${colName}"`);
+        } else if (res.action === 'removed') {
+          showToast(`Removed from "${colName}"`);
+        }
+        return;
+      }
+
+      const wasAdded = toggleShotInCollection(colId, currentSheetTarget);
       renderSheetCollectionsList();
 
       // Update underlying bookmark button in reel view
@@ -3562,12 +3681,15 @@
       const newCol = createCollection(name);
       input.value = '';
       if (newCol && currentSheetTarget) {
-        toggleShotInCollection(newCol.id, currentSheetTarget);
+        if (currentSheetTarget.isWholeReel) {
+          toggleWholeReelInCollection(newCol.id, currentSheetTarget);
+        } else {
+          toggleShotInCollection(newCol.id, currentSheetTarget);
+          const btn = document.getElementById(`save-btn-${currentSheetTarget.reelId}-${currentSheetTarget.shotId}`);
+          if (btn) btn.classList.add('saved');
+        }
         showToast(`Created & Saved to "${newCol.name}"`);
         renderSheetCollectionsList();
-
-        const btn = document.getElementById(`save-btn-${currentSheetTarget.reelId}-${currentSheetTarget.shotId}`);
-        if (btn) btn.classList.add('saved');
       }
     }
 
@@ -4695,8 +4817,7 @@
       const reelId = activeFeedOptionsReelId;
       closeFeedOptionsSheet();
       if (!reelId) return;
-      openSplitScenesFromFeed(reelId);
-      showToast('Select any scene to save to your collection');
+      openSaveReelToCollectionSheet(reelId);
     }
 
     async function toggleReelActive(reelId) {
