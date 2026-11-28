@@ -6,8 +6,23 @@ set -euo pipefail
 #   curl -fsSL https://raw.githubusercontent.com/sagarsakre/sakrecubesdb/main/scripts/sync_ig_cookies.sh | bash
 #   ./scripts/sync_ig_cookies.sh [user@pi-host]
 
-PI_TARGET="${1:-${PI_SSH_TARGET:-admin@192.168.0.118}}"
+DEFAULT_PI_USER="admin"
+DEFAULT_PI_HOST="192.168.0.118"
 PI_APP_DIR="${PI_APP_DIR:-~/sakrecubesdb}"
+
+if [[ -n "${1:-}" ]]; then
+  PI_TARGET="$1"
+elif [[ -n "${PI_SSH_TARGET:-}" ]]; then
+  PI_TARGET="$PI_SSH_TARGET"
+elif [[ -r /dev/tty && -w /dev/tty ]]; then
+  read -r -p "🖥️  Pi username [${DEFAULT_PI_USER}]: " INPUT_USER </dev/tty
+  read -r -p "🌐 Pi IP/host [${DEFAULT_PI_HOST}]: " INPUT_HOST </dev/tty
+  PI_USER="${INPUT_USER:-$DEFAULT_PI_USER}"
+  PI_HOST="${INPUT_HOST:-$DEFAULT_PI_HOST}"
+  PI_TARGET="${PI_USER}@${PI_HOST}"
+else
+  PI_TARGET="${DEFAULT_PI_USER}@${DEFAULT_PI_HOST}"
+fi
 
 if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]:-}" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
