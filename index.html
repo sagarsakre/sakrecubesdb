@@ -2075,6 +2075,155 @@
       color: var(--text-muted);
       line-height: 1.45;
     }
+
+    /* 3xN Static Collection Items Grid & Photos-App Bulk Selection */
+    .col-grid-3xN {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding-bottom: 90px;
+    }
+    .col-grid-tile {
+      position: relative;
+      aspect-ratio: 9 / 16;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #0a0f1c;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .col-grid-tile:active {
+      transform: scale(0.97);
+    }
+    .col-grid-tile.bulk-selected {
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
+    }
+    .col-grid-tile img,
+    .col-grid-tile video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      pointer-events: none;
+    }
+    .col-grid-badge {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(6px);
+      color: #f1f5f9;
+      font-size: 9.5px;
+      font-weight: 600;
+      padding: 2px 5px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      pointer-events: none;
+    }
+    .col-grid-label {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px 6px 5px 6px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+      font-size: 10px;
+      font-weight: 600;
+      color: #e2e8f0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: none;
+    }
+    .bulk-check-circle {
+      position: absolute;
+      bottom: 7px;
+      right: 7px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.85);
+      background: rgba(15, 23, 42, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: transparent;
+      z-index: 6;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+    .bulk-selecting .bulk-check-circle {
+      display: flex;
+    }
+    .bulk-selected .bulk-check-circle {
+      background: #38bdf8;
+      border-color: #38bdf8;
+      color: #0f172a;
+    }
+    .shot-card {
+      position: relative;
+    }
+    .shot-card.bulk-selected {
+      border: 2px solid #38bdf8 !important;
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
+    }
+    .shot-card.bulk-selectable .shot-check,
+    .shot-card.bulk-selectable .shot-save-btn {
+      pointer-events: none;
+      opacity: 0.35;
+    }
+    .bulk-action-bar {
+      position: fixed;
+      bottom: calc(var(--safe-bottom) + 14px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 220;
+      width: min(94vw, 460px);
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 18px;
+      padding: 10px 12px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+    }
+    .bulk-action-bar.active {
+      display: flex;
+    }
+    .bulk-action-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .bulk-count-text {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+    }
+    .bulk-action-btns {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-bulk-sm {
+      padding: 6px 11px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -2189,6 +2338,10 @@
           <!-- Size Badge: Shows MB or offline indicator when downloaded -->
           <span class="reel-size-pill" id="detail-size-badge" style="display: none;"></span>
 
+          <button class="btn btn-secondary" id="detail-select-btn" style="padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="toggleBulkSelectMode('detail')">
+            ☑️ Select
+          </button>
+
           <!-- Single Options Button -->
           <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="openOptionsModal()">
             ⚙️ Options
@@ -2237,13 +2390,16 @@
         <button class="back-btn" onclick="showHomeView()">← Collections</button>
         
         <div class="detail-nav-actions">
-          <button class="btn btn-secondary" id="col-fav-toggle-btn" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;" onclick="toggleFavoriteForActiveCollection()">
-            <svg id="col-fav-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button class="btn btn-secondary" id="col-select-btn" style="padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="toggleBulkSelectMode('collection')">
+            ☑️ Select
+          </button>
+          <button class="btn btn-secondary" id="col-fav-toggle-btn" style="padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 5px;" onclick="toggleFavoriteForActiveCollection()">
+            <svg id="col-fav-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
-            <span id="col-fav-btn-text">Favorite</span>
+            <span id="col-fav-btn-text">Fav</span>
           </button>
-          <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="openCollectionOptionsMenu()">
+          <button class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 4px;" onclick="openCollectionOptionsMenu()">
             ⚙️ Manage
           </button>
         </div>
@@ -2257,8 +2413,8 @@
         <div class="detail-sub-title" id="col-view-subtitle">Saved inspiration clips from your reels</div>
       </div>
 
-      <!-- Collection Shot Cards List -->
-      <div class="shots-list" id="col-shots-container">
+      <!-- Collection 3xN Static Grid -->
+      <div class="col-grid-3xN" id="col-shots-container">
         <!-- Injected via JavaScript -->
       </div>
     </section>
@@ -2308,6 +2464,10 @@
       <p class="modal-desc" id="options-modal-reel-name">Manage settings for this reel reference.</p>
       
       <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+        <button class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px; display: flex; align-items: center; gap: 10px;" onclick="closeCollectionOptionsMenu(); toggleBulkSelectMode('collection', true);">
+          <span style="display: flex; align-items: center;">☑️</span>
+          <span>Select Items in Bulk</span>
+        </button>
         <button class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;" onclick="resetChecksForCurrentReel()">
           🔄 Reset All Checkmarks
         </button>
@@ -2549,6 +2709,19 @@
         </div>
         <div style="display: flex; flex-direction: column; gap: 8px;" id="board-sync-actions"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Floating Bulk Selection Action Bar -->
+  <div class="bulk-action-bar" id="bulk-action-bar">
+    <div class="bulk-action-left">
+      <span class="bulk-count-text" id="bulk-selected-count">0 selected</span>
+      <button class="btn-bulk-sm" style="background: rgba(255,255,255,0.1); color: #e2e8f0;" id="bulk-select-all-btn" onclick="toggleBulkSelectAll()">All</button>
+    </div>
+    <div class="bulk-action-btns">
+      <button class="btn-bulk-sm" style="background: #38bdf8; color: #0f172a;" id="bulk-add-col-btn" onclick="openBulkSaveToCollectionSheet()">+ Collection</button>
+      <button class="btn-bulk-sm" style="background: #ef4444; color: #fff; display: none;" id="bulk-remove-col-btn" onclick="bulkRemoveFromActiveCollection()">Remove</button>
+      <button class="btn-bulk-sm" style="background: rgba(255,255,255,0.1); color: #cbd5e1;" onclick="exitBulkSelectMode()">Done</button>
     </div>
   </div>
 
@@ -3529,9 +3702,9 @@
       const missingItems = target.items.filter(item => !isShotInCollection(col, item.reelId, item.shotId));
 
       if (missingItems.length === 0) {
-        // All scenes/photos already in this collection -> remove all of this reel's items
-        const targetShotIds = new Set(target.items.map(i => String(i.shotId)));
-        col.items = col.items.filter(i => !(i.reelId === target.reelId && targetShotIds.has(String(i.shotId))));
+        // All selected scenes/photos already in this collection -> remove all of them
+        const targetPairs = new Set(target.items.map(i => `${i.reelId}::${i.shotId}`));
+        col.items = col.items.filter(i => !targetPairs.has(`${i.reelId}::${i.shotId}`));
         saveCollections(cols);
         return { action: 'removed', count: target.items.length };
       } else {
@@ -3717,10 +3890,178 @@
       openCollectionView(newCol.id);
     }
 
-    /* Collection View (Aggregated Split Scenes) */
+    /* Collection View (3xN Static Grid + Photos-App Bulk Selection) */
     let activeCollectionId = null;
+    let bulkModeContext = null; // 'collection' | 'detail' | null
+    let bulkSelectedKeys = new Set(); // "reelId::shotId"
+
+    function toggleBulkSelectMode(context, forceOn = false) {
+      if (bulkModeContext === context && !forceOn) {
+        exitBulkSelectMode();
+        return;
+      }
+      bulkModeContext = context;
+      bulkSelectedKeys.clear();
+      applyBulkModeUI();
+    }
+
+    function exitBulkSelectMode() {
+      bulkModeContext = null;
+      bulkSelectedKeys.clear();
+      applyBulkModeUI();
+    }
+
+    function applyBulkModeUI() {
+      const colContainer = document.getElementById('col-shots-container');
+      const detailContainer = document.getElementById('shots-container');
+      const bar = document.getElementById('bulk-action-bar');
+      const colBtn = document.getElementById('col-select-btn');
+      const detBtn = document.getElementById('detail-select-btn');
+      const removeBtn = document.getElementById('bulk-remove-col-btn');
+
+      if (colContainer) {
+        colContainer.classList.toggle('bulk-selecting', bulkModeContext === 'collection');
+        colContainer.querySelectorAll('.col-grid-tile').forEach(tile => {
+          tile.classList.toggle('bulk-selected', bulkSelectedKeys.has(tile.dataset.bulkKey));
+        });
+      }
+      if (detailContainer) {
+        detailContainer.classList.toggle('bulk-selecting', bulkModeContext === 'detail');
+        detailContainer.querySelectorAll('.shot-card').forEach(card => {
+          card.classList.toggle('bulk-selectable', bulkModeContext === 'detail');
+          card.classList.toggle('bulk-selected', bulkSelectedKeys.has(card.dataset.bulkKey));
+        });
+      }
+
+      if (colBtn) colBtn.textContent = bulkModeContext === 'collection' ? '✕ Cancel' : '☑️ Select';
+      if (detBtn) detBtn.textContent = bulkModeContext === 'detail' ? '✕ Cancel' : '☑️ Select';
+      if (removeBtn) removeBtn.style.display = bulkModeContext === 'collection' ? 'inline-block' : 'none';
+      if (bar) bar.classList.toggle('active', bulkModeContext !== null);
+
+      updateBulkActionBar();
+    }
+
+    function updateBulkActionBar() {
+      const countEl = document.getElementById('bulk-selected-count');
+      const addBtn = document.getElementById('bulk-add-col-btn');
+      const remBtn = document.getElementById('bulk-remove-col-btn');
+      const allBtn = document.getElementById('bulk-select-all-btn');
+      const count = bulkSelectedKeys.size;
+
+      if (countEl) countEl.textContent = `${count} selected`;
+      if (addBtn) addBtn.disabled = count === 0;
+      if (remBtn) remBtn.disabled = count === 0;
+
+      if (allBtn) {
+        const totalAvail = getBulkAvailableItems().length;
+        allBtn.textContent = (totalAvail > 0 && count === totalAvail) ? 'None' : 'All';
+      }
+    }
+
+    function getBulkAvailableItems() {
+      if (bulkModeContext === 'collection' && activeCollectionId) {
+        const col = getCollections().find(c => c.id === activeCollectionId);
+        return (col && col.items) ? col.items : [];
+      }
+      if (bulkModeContext === 'detail' && currentReel && currentReel.shots) {
+        const basePath = currentReel.reel_json
+          ? currentReel.reel_json.substring(0, currentReel.reel_json.lastIndexOf('/') + 1)
+          : `data/reels/${currentReel.id}/`;
+        const nowIso = new Date().toISOString();
+        return currentReel.shots.map(shot => ({
+          reelId: currentReel.id,
+          reelTitle: currentReel.title,
+          shotId: shot.id,
+          title: shot.title,
+          clip: shot.video || shot.clip || shot.image || '',
+          duration: shot.duration || '',
+          basePath,
+          addedAt: nowIso
+        }));
+      }
+      return [];
+    }
+
+    function toggleBulkItemSelection(key) {
+      if (!bulkModeContext) return;
+      if (bulkSelectedKeys.has(key)) {
+        bulkSelectedKeys.delete(key);
+      } else {
+        bulkSelectedKeys.add(key);
+      }
+      applyBulkModeUI();
+    }
+
+    function toggleBulkSelectAll() {
+      const items = getBulkAvailableItems();
+      if (items.length === 0) return;
+      if (bulkSelectedKeys.size === items.length) {
+        bulkSelectedKeys.clear();
+      } else {
+        items.forEach(it => bulkSelectedKeys.add(`${it.reelId}::${it.shotId}`));
+      }
+      applyBulkModeUI();
+    }
+
+    function bulkRemoveFromActiveCollection() {
+      if (bulkModeContext !== 'collection' || !activeCollectionId || bulkSelectedKeys.size === 0) return;
+      const cols = getCollections();
+      const col = cols.find(c => c.id === activeCollectionId);
+      if (!col) return;
+
+      const removedCount = bulkSelectedKeys.size;
+      col.items = (col.items || []).filter(i => !bulkSelectedKeys.has(`${i.reelId}::${i.shotId}`));
+      saveCollections(cols);
+
+      const count = col.items.length;
+      document.getElementById('col-view-count').textContent = `${count} ${count === 1 ? 'clip' : 'clips'}`;
+      exitBulkSelectMode();
+      renderCollectionShots(col);
+      renderCollectionsGrid();
+      showToast(`Removed ${removedCount} ${removedCount === 1 ? 'item' : 'items'} from "${col.name}"`);
+    }
+
+    function openBulkSaveToCollectionSheet() {
+      if (bulkSelectedKeys.size === 0) return;
+      const allAvail = getBulkAvailableItems();
+      const selectedItems = allAvail.filter(it => bulkSelectedKeys.has(`${it.reelId}::${it.shotId}`));
+      if (selectedItems.length === 0) return;
+
+      currentSheetTarget = {
+        isWholeReel: true,
+        isBulkItems: true,
+        reelId: selectedItems[0].reelId,
+        reelTitle: `${selectedItems.length} selected items`,
+        items: selectedItems,
+        totalShots: selectedItems.length
+      };
+
+      const previewEl = document.getElementById('save-sheet-item-preview');
+      if (previewEl) {
+        const first = selectedItems[0];
+        const parentReel = masterCatalog.find(r => r.id === first.reelId);
+        const thumbPath = (parentReel && parentReel.thumbnail)
+          ? parentReel.thumbnail
+          : `${first.basePath}thumbnail.jpg`;
+        previewEl.innerHTML = `
+          <img class="sheet-preview-thumb" src="${resolveMediaUrl(thumbPath)}" alt="Selected items">
+          <div class="sheet-preview-meta">
+            <div class="sheet-preview-title">${selectedItems.length} Selected ${selectedItems.length === 1 ? 'Item' : 'Items'}</div>
+            <div class="sheet-preview-sub">Add to or remove from collections</div>
+          </div>
+        `;
+      }
+
+      const inputEl = document.getElementById('new-col-input');
+      if (inputEl) inputEl.value = '';
+
+      renderSheetCollectionsList();
+      const sheet = document.getElementById('save-collection-sheet');
+      if (sheet) sheet.classList.add('active');
+    }
 
     function openCollectionView(colId) {
+      exitBulkSelectMode();
       const cols = getCollections();
       const col = cols.find(c => c.id === colId);
       if (!col) return;
@@ -3758,10 +4099,10 @@
       const items = col.items || [];
       if (items.length === 0) {
         container.innerHTML = `
-          <div style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+          <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--text-muted);">
             <div style="font-size: 42px; margin-bottom: 12px;">📁</div>
             <h3 style="color: #fff; font-size: 16px; margin-bottom: 6px;">Collection is Empty</h3>
-            <p style="font-size: 13px; line-height: 1.5; margin-bottom: 20px;">Open any reference reel on your board or master library and tap the 🔖 bookmark icon on split scenes to add them here.</p>
+            <p style="font-size: 13px; line-height: 1.5; margin-bottom: 20px;">Open any reference reel or carousel and tap Select or the 🔖 bookmark icon to add items here.</p>
             <button class="btn btn-secondary" onclick="showHomeView()">← Back to Trip Board</button>
           </div>
         `;
@@ -3769,63 +4110,47 @@
       }
 
       for (const item of items) {
-        const card = document.createElement('article');
-        card.className = 'shot-card';
-        card.id = `col-shot-${item.reelId}-${item.shotId}`;
+        const bulkKey = `${item.reelId}::${item.shotId}`;
+        const tile = document.createElement('div');
+        tile.className = `col-grid-tile ${bulkSelectedKeys.has(bulkKey) ? 'bulk-selected' : ''}`;
+        tile.id = `col-shot-${item.reelId}-${item.shotId}`;
+        tile.dataset.bulkKey = bulkKey;
 
         const fullClipUrl = resolveMediaUrl(item.basePath + item.clip);
         const isImg = isImageClip(item.clip);
-        const durHtml = item.duration ? `<div class="shot-duration-pill">${item.duration}</div>` : '';
+        const badgeText = isImg ? '📸' : (item.duration ? `🎬 ${item.duration}` : '🎬');
         const mediaHtml = isImg
-          ? `<img class="shot-photo-img" src="${fullClipUrl}" loading="lazy" alt="${item.title}">`
-          : `<video class="shot-loop-video" src="${fullClipUrl}" playsinline webkit-playsinline muted loop autoplay preload="auto"></video>`;
+          ? `<img src="${fullClipUrl}" loading="eager" alt="${item.title}">`
+          : `<video src="${fullClipUrl}#t=0.1" muted playsinline webkit-playsinline preload="metadata"></video>`;
 
-        card.innerHTML = `
-          <div class="shot-header">
-            <div class="shot-meta" style="flex: 1;">
-              <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div class="shot-title-text">${item.title}</div>
-                ${durHtml}
-              </div>
-              <div class="scene-reel-badge" onclick="openReelById('${item.reelId}')" title="Open source item">
-                ${isImg ? '📸' : '🎬'} ${item.reelTitle || item.reelId}
-              </div>
-            </div>
-            <button class="shot-save-btn saved" title="Remove from this collection" onclick="removeShotFromCollection('${col.id}', '${item.reelId}', ${item.shotId})">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-              </svg>
-            </button>
-          </div>
-          <div class="shot-media-box">
-            ${mediaHtml}
-          </div>
+        tile.innerHTML = `
+          ${mediaHtml}
+          <div class="col-grid-badge">${badgeText}</div>
+          <div class="col-grid-label">${item.title}</div>
+          <div class="bulk-check-circle">✓</div>
         `;
-        container.appendChild(card);
 
-        const cv = card.querySelector('video');
-        if (cv) {
-          cv.playsInline = true;
-          cv.setAttribute('playsinline', '');
-          cv.setAttribute('webkit-playsinline', '');
-          cv.muted = true;
-          cv.defaultMuted = true;
-        }
+        tile.onclick = () => {
+          if (bulkModeContext === 'collection') {
+            toggleBulkItemSelection(bulkKey);
+          } else {
+            openReelById(item.reelId);
+          }
+        };
 
-        // Offline blob playback if cached
+        container.appendChild(tile);
+
+        // Load from offline IndexedDB if cached
         getMediaBlob(fullClipUrl).then(blob => {
           if (blob) {
             const blobUrl = URL.createObjectURL(blob);
-            const v = card.querySelector('video');
-            if (v) {
-              v.src = blobUrl;
-              v.play().catch(() => {});
+            const mediaEl = tile.querySelector(isImg ? 'img' : 'video');
+            if (mediaEl) {
+              mediaEl.src = isImg ? blobUrl : `${blobUrl}#t=0.1`;
             }
           }
         });
       }
-
-      setupVideoObserver();
     }
 
     function removeShotFromCollection(colId, reelId, shotId) {
@@ -4987,6 +5312,7 @@
        REEL DETAIL VIEW
        ======================================================================== */
     async function openReel(reelSummary) {
+      exitBulkSelectMode();
       const fullJsonUrl = resolveMediaUrl(reelSummary.reel_json);
       try {
         const res = await fetch(fullJsonUrl);
@@ -5058,6 +5384,7 @@
     }
 
     function showHomeView() {
+      exitBulkSelectMode();
       // Pause and unload video player to save memory and stop audio
       const videoPlayer = document.getElementById('detail-video-player');
       if (videoPlayer) {
@@ -5364,10 +5691,19 @@
 
       for (const shot of reel.shots) {
         const isDone = checkedShots.includes(shot.id);
+        const bulkKey = `${reel.id}::${shot.id}`;
         const card = document.createElement('article');
         card.className = `shot-card ${isDone ? 'completed' : ''}`;
         card.id = `shot-${shot.id}`;
+        card.dataset.bulkKey = bulkKey;
         card.style.order = isDone ? '1' : '0';
+        card.onclick = (e) => {
+          if (bulkModeContext === 'detail') {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleBulkItemSelection(bulkKey);
+          }
+        };
 
         const clipRel = shot.video || shot.clip || shot.image || '';
         const fullClipUrl = resolveMediaUrl(basePath + clipRel);
@@ -5380,14 +5716,14 @@
 
         card.innerHTML = `
           <div class="shot-header">
-            <div class="shot-check" onclick="toggleShot(${shot.id})">
+            <div class="shot-check" onclick="if(bulkModeContext!=='detail') toggleShot(${shot.id})">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div class="shot-meta" onclick="toggleShot(${shot.id})">
+            <div class="shot-meta" onclick="if(bulkModeContext!=='detail') toggleShot(${shot.id})">
               <div class="shot-title-text">${shot.title}</div>
               ${durationHtml}
             </div>
-            <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="openSaveCollectionSheet('${reel.id}', ${shot.id}, event)">
+            <button class="shot-save-btn ${isSaved ? 'saved' : ''}" id="save-btn-${reel.id}-${shot.id}" title="Save to collection" onclick="if(bulkModeContext!=='detail') openSaveCollectionSheet('${reel.id}', ${shot.id}, event)">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
               </svg>
@@ -5396,6 +5732,7 @@
           <div class="shot-media-box">
             ${mediaHtml}
           </div>
+          <div class="bulk-check-circle">✓</div>
         `;
         container.appendChild(card);
 
